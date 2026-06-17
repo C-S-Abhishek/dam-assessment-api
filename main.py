@@ -1,12 +1,14 @@
-from fastapi import FastAPI, HTTPException
+import os
+import jwt
+import pandas as pd
+from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import List, Any
-import sqlite3
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from sqlalchemy import create_engine
 
 app = FastAPI()
 
-# Allow CORS so your frontend can communicate with this API
+# Allow your frontend to talk to this backend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -15,58 +17,80 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-class SyncPayload(BaseModel):
-    assessments: List[List[Any]] # Receives the array of rows [cite: 61]
+# --- SECURITY & DATABASE CONFIGURATION ---
+SECRET_KEY = os.getenv("SECRET_KEY", "super_secret_dam_encryption_key_2024")
+
+# REPLACE THIS URL WITH YOUR SUPABASE OR NEON POSTGRESQL LINK
+DATABASE_URL = os.getenv("DATABASE_URL", "YOUR_POSTGRES_URL_HERE")
+
+engine = create_engine(DATABASE_URL)
+security = HTTPBearer()
+
+# --- SECURITY PROTOCOL (JWT) ---
+def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    try:
+        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=["HS256"])
+        return payload
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired. Please log in again.")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token. Access denied.")
+
+# --- API ENDPOINTS ---
+@app.post("/api/login")
+async def login(credentials: dict):
+    """Verifies credentials securely on the server and issues a JWT token."""
+    username = credentials.get("username")
+    password = credentials.get("password")
+    
+    if username == "admin" and password == "admin":
+        token = jwt.encode({"role": "admin"}, SECRET_KEY, algorithm="HS256")
+        return {"status": "success", "token": token, "role": "admin"}
+    elif username == "inspector" and password == "insp":
+        token = jwt.encode({"role": "inspector"}, SECRET_KEY, algorithm="HS256")
+        return {"status": "success", "token": token, "role": "inspector"}
+    
+    raise HTTPException(status_code=401, detail="Invalid Username or Password")
 
 @app.post("/api/sync")
-def sync_data(payload: SyncPayload):
-    try:
-        # Connect to a local SQLite database 
-        conn = sqlite3.connect('dam_assessments.db')
-        cursor = conn.cursor()
-        
-        # Create table if it doesn't exist
-        cursor.execute('''CREATE TABLE IF NOT EXISTS assessments
-                          (damName text, segment text, segWeight text, range text, 
-                           height text, location text, component text, locWeight text, 
-                           defect text, rank int, normRank real, defectWeight real, 
-                           dsi real, weightedDsi real, image text)''')
-        
-        # Insert rows
-        for row in payload.assessments:
-            cursor.execute("INSERT INTO assessments VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", tuple(row))
-            
-        conn.commit()
-        conn.close()
-        return {"status": "success", "message": f"Synced {len(payload.assessments)} rows."}
+async def sync_data(request: Request, token: dict = Depends(verify_token)):
+    """Receives offline data from the tablet and saves it permanently to PostgreSQL."""
+    data = await request.json()
+    if 'assessments' not in data or not data['assessments']:
+        return {"status": "empty"}
     
+    # Structure the data into a Pandas DataFrame
+    df = pd.DataFrame(data['assessments'], columns=[
+        "Dam Name", "Segment/System", "Seg Weight", "Range", "Height", "Location", 
+        "Component", "Loc Weight", "Defect", "Severity Rank", "Norm Rank", 
+        "Defect Weight", "DSI", "Weighted DSI", "Image (Base64)"
+    ])
+    
+    try:
+        # Push to Cloud PostgreSQL Database
+        df.to_sql('assessments', engine, if_exists='append', index=False)
+        return {"status": "success"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/assessments")
-def get_all_assessments():
+async def get_assessments(token: dict = Depends(verify_token)):
+    """Fetches all historical data securely for the Admin Dashboard."""
     try:
-        # Connect to the database
-        conn = sqlite3.connect('dam_assessments.db')
+        df = pd.read_sql_table('assessments', engine)
         
-        # This makes the data output with column names (like a dictionary)
-        conn.row_factory = sqlite3.Row 
-        cursor = conn.cursor()
+        # Rename columns so the frontend JavaScript understands them
+        df = df.rename(columns={
+            "Dam Name": "damName", "Segment/System": "segment", "Seg Weight": "segWeight",
+            "Range": "range", "Height": "height", "Location": "location", 
+            "Component": "component", "Loc Weight": "locWeight", "Defect": "defect",
+            "Severity Rank": "rank", "Norm Rank": "normRank", "Defect Weight": "defectWeight",
+            "DSI": "dsi", "Weighted DSI": "weightedDsi", "Image (Base64)": "image"
+        })
         
-        # Check if the table exists first to avoid errors
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='assessments'")
-        if not cursor.fetchone():
-            return {"status": "empty", "message": "No data synced yet."}
-            
-        # Fetch all saved rows
-        cursor.execute("SELECT * FROM assessments")
-        rows = cursor.fetchall()
-        conn.close()
-        
-        # Return the data
-        return {"status": "success", "total_records": len(rows), "data": [dict(row) for row in rows]}
-    
+        df = df.fillna("") # Prevent null errors
+        records = df.to_dict(orient='records')
+        return {"status": "success", "total_records": len(records), "data": records}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+        # If the table is empty/doesn't exist yet
+        return {"status": "success", "data": []}
