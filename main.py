@@ -20,7 +20,7 @@ app.add_middleware(
 # --- SECURITY & DATABASE CONFIGURATION ---
 SECRET_KEY = os.getenv("SECRET_KEY", "super_secret_dam_encryption_key_2024")
 
-# REPLACE THIS URL WITH YOUR SUPABASE OR NEON POSTGRESQL LINK
+# This is your active Supabase connection!
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:zncnLEXt98z5T5yL@db.zwfiedglfwjqptlhdquf.supabase.co:5432/postgres")
 
 engine = create_engine(DATABASE_URL)
