@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Enterprise Dam Assessment Portal</title>
+    <!-- Chart.js for Admin Analytics -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- LocalForage (IndexedDB) to bypass the 5MB browser storage limit -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
     
     <style>
@@ -94,10 +96,11 @@
         .log-img { width: 60px; height: 60px; object-fit: cover; border-radius: 6px; border: 1px solid #ccc; cursor: pointer; margin-right: 15px; transition: 0.2s; }
         .log-img:hover { transform: scale(1.1); }
         
-        /* Tooltips */
+        /* Tooltips with Single Wide Image Support */
         .info-icon { width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; color: white; font-size: 13px; cursor: pointer; background: #3498db; font-family: serif; font-weight: bold; position: relative; margin-left: 8px;}
-        .tooltip-content { display: none; position: absolute; bottom: 35px; left: 50%; transform: translateX(-50%); width: 220px; background: #2c3e50; color: #fff; padding: 12px; border-radius: 6px; box-shadow: 0 8px 20px rgba(0,0,0,0.2); z-index: 1000; font-size: 12px; font-weight: normal; text-align: left; }
+        .tooltip-content { display: none; position: absolute; bottom: 35px; left: 50%; transform: translateX(-50%); width: 650px; max-width: 85vw; background: #2c3e50; color: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); z-index: 1000; font-size: 13px; font-weight: normal; text-align: left; cursor: default; }
         .info-icon:hover .tooltip-content { display: block; }
+        .tooltip-img { width: 100%; height: auto; border-radius: 4px; border: 1px solid #4a6278; margin-top: 10px; display: block; background: white;}
     </style>
 </head>
 <body>
@@ -112,6 +115,7 @@
       </div>
     </div>
 
+    <!-- Image Preview Modal -->
     <div id="imgModal" class="modal" onclick="closePreview(event)">
       <div class="modal-content">
         <img id="modalImg" src="">
@@ -131,37 +135,92 @@
           if(contentBox && contentBox.innerHTML.includes('Loading')) {
               contentBox.innerHTML = `
                   <div style="text-align:center; padding:40px; color:var(--danger);">
-                      <h2>⚠️ Cache Conflict</h2>
-                      <p style="color:#2c3e50;">Memory conflict detected. Please clear the cache to load the new Enterprise version.</p>
+                      <h2>⚠️ Startup Error</h2>
+                      <p style="color:#2c3e50;">Memory conflict detected. Please reset the cache.</p>
                       <button class="btn btn-danger" onclick="localStorage.clear(); localforage.clear(); location.reload();" style="padding:15px 30px; font-size:18px; margin-top:20px;">Clear Cache & Restart App</button>
                   </div>`;
           }
       };
-
-      // ==========================================
+        // ==========================================
       // 1. MASTER FACTORY DEFAULTS (Full Catalog)
       // ==========================================
+      
       const visualInfo = {
-        "Cracks": { desc: "Linear openings on masonry surface." },
-        "Loosening of Blocks": { desc: "Blocks show movement/gaps." },
-        "Mortar Deterioration": { desc: "Joints recessed or washed out." },
-        "Spalling": { desc: "Surface flakes/fragments detach." },
-        "Leakage": { desc: "Visible water outflow." },
-        "Seepage/Sweating": { desc: "Wet patches or discoloration." },
-        "Seepage": { desc: "Wet patches or discoloration." },
-        "Erosion": { desc: "Surface wear, depressions, grooves." },
-        "Vegetation Growth": { desc: "Weeds/shrubs in joints." },
-        "Efflorescence": { desc: "White salt deposits." },
-        "Vertical Misalignment": { desc: "Gate tilted or uneven." },
-        "Bending of Gate": { desc: "Gate leaf curved." },
-        "Slide Track Condition": { desc: "Tracks worn/obstructed." },
-        "Corrosion": { desc: "Rust, pitting, metal loss." },
-        "Last Operation History": { desc: "Stiffness or noise." },
-        "Age of Gate": { desc: "Old components." },
-        "Drain Blockage": { desc: "Obstruction in drainage systems." },
-        "Water Ponding": { desc: "Standing water on crest." }
+        "Cracks": { 
+            desc: "Linear openings on masonry surface.",
+            img: "examples/Crack.png" 
+        },
+        "Loosening of Blocks": { 
+            desc: "Blocks show movement/gaps.",
+            img: "examples/Loosening of Blocks.png" 
+        },
+        "Mortar Deterioration": { 
+            desc: "Joints recessed or washed out.", 
+            img: "examples/Mortar Deterioration.png" 
+        },
+        "Spalling": { 
+            desc: "Surface flakes/fragments detach.", 
+            img: "examples/Spalling.png" 
+        },
+        "Leakage": { 
+            desc: "Visible water outflow.", 
+            img: "examples/Leakage.png" 
+        },
+        "Seepage/Sweating": { 
+            desc: "Wet patches or discoloration.", 
+            img: "examples/Seepage Sweating.png" 
+        },
+        "Seepage": { 
+            desc: "Wet patches or discoloration.", 
+            img: "examples/Seepage Sweating.png" 
+        },
+        "Erosion": { 
+            desc: "Surface wear, depressions, grooves.", 
+            img: "examples/Erosion.png" 
+        },
+        "Vegetation Growth": { 
+            desc: "Weeds/shrubs in joints.", 
+            img: "examples/Vegetation Growth.png" 
+        },
+        "Efflorescence": { 
+            desc: "White salt deposits.", 
+            img: "examples/Effloroscence.png" // Matched to your exact spelling
+        },
+        "Vertical Misalignment": { 
+            desc: "Gate tilted or uneven.", 
+            img: "examples/Vertical Misalignment.png" 
+        },
+        "Bending of Gate": { 
+            desc: "Gate leaf curved.", 
+            img: "examples/Bending of Gate.png" 
+        },
+        "Slide Track Condition": { 
+            desc: "Tracks worn/obstructed.", 
+            img: "examples/Slide Track Condition.png" 
+        },
+        "Corrosion": { 
+            desc: "Rust, pitting, metal loss.", 
+            img: "examples/Corrosion.png" 
+        },
+        "Last Operation History": { 
+            desc: "Stiffness or noise.", 
+            img: "examples/Last Operation History.png" 
+        },
+        "Age of Gate": { 
+            desc: "Old components.", 
+            img: "examples/Age of Gate.png" 
+        },
+        "Drain Blockage": { 
+            desc: "Obstruction in drainage systems.", 
+            img: "" // (No image found in your screenshot for this one)
+        },
+        "Water Ponding": { 
+            desc: "Standing water on crest.", 
+            img: "examples/WATER PONDING IN CREST.png" 
+        }
       };
 
+     // FULL, UNCUT CRITERIA RESTORED
       const defaultDatabase = {
         "DOWNSTREAM FOUNDATION": { weight: 0.39, defects: {
             "Cracks": { w: 0.290, enabled: true, param: "Crack Width", criteria: "Critical: >20mm\nSevere: 10-20mm\nModerate: 5-10mm\nMinor: <5mm" },
@@ -215,66 +274,65 @@
       const defaultSystems = {
         "Spillway": { weight: 0.28, components: {
             "Steel Gates": { weight: 0.35, defects: {
-                "Vertical Misalignment": { w: 0.395, enabled: true, param: "Offset", criteria: "Critical: >15mm\nMinor: <5mm" },
-                "Bending of Gate": { w: 0.258, enabled: true, param: "Deflection", criteria: "Critical: >20mm\nMinor: <5mm" },
-                "Slide Track Condition": { w: 0.159, enabled: true, param: "% Wear", criteria: "Critical: Jams\nMinor: <10% wear" },
-                "Corrosion": { w: 0.096, enabled: true, param: "% Corroded", criteria: "Critical: >50%\nMinor: <10%" },
-                "Last Operation History": { w: 0.057, enabled: true, param: "Years", criteria: "Critical: >5 yrs\nMinor: <1 yr" },
-                "Age of Gate": { w: 0.035, enabled: true, param: "Years", criteria: "Critical: >40 yrs\nMinor: <20 yrs" }
+                "Vertical Misalignment": { w: 0.395, enabled: true, param: "Offset/Tilt", criteria: "Critical: >15mm or 1.5°\nSevere: 10-15mm or 1.0-1.5°\nModerate: 5-10mm or 0.5-1.0°\nMinor: <5mm or <0.5°" },
+                "Bending of Gate": { w: 0.258, enabled: true, param: "Deflection", criteria: "Critical: >20mm\nSevere: 10-20mm\nModerate: 5-10mm\nMinor: <5mm" },
+                "Slide Track Condition": { w: 0.159, enabled: true, param: "% Wear", criteria: "Critical: Jams / >50% wear\nSevere: High friction, 30-50%\nModerate: Roughness, 10-30%\nMinor: <10% wear" },
+                "Corrosion": { w: 0.096, enabled: true, param: "% Corroded", criteria: "Critical: >50% deep pitting\nSevere: 30-50%\nModerate: 10-30%\nMinor: <10%" },
+                "Last Operation History": { w: 0.057, enabled: true, param: "Years", criteria: "Critical: >5 yrs\nSevere: 3-5 yrs\nModerate: 1-3 yrs\nMinor: <1 yr" },
+                "Age of Gate": { w: 0.035, enabled: true, param: "Years", criteria: "Critical: >40 yrs\nSevere: 30-40 yrs\nModerate: 20-30 yrs\nMinor: <20 yrs" }
             }},
             "Pillar": { weight: 0.65, defects: {
-                "Seepage/Sweating": { w: 0.321, enabled: true, param: "% Area", criteria: "Critical: >5%\nMinor: <0.5%" },
-                "Leakage": { w: 0.228, enabled: true, param: "Flow", criteria: "Critical: Jet\nMinor: Dampness" },
-                "Cracks": { w: 0.156, enabled: true, param: "% Grids", criteria: "Critical: >10%\nMinor: <1%" },
-                "Loosening of Blocks": { w: 0.106, enabled: true, param: "Movement", criteria: "Critical: Progressive\nMinor: None" },
-                "Mortar Deterioration": { w: 0.072, enabled: true, param: "% Area", criteria: "Critical: >5%\nMinor: <1%" },
-                "Spalling": { w: 0.049, enabled: true, param: "% Area", criteria: "Critical: >5%\nMinor: <1%" },
-                "Erosion": { w: 0.032, enabled: true, param: "% Area", criteria: "Critical: >5%\nMinor: <1%" },
-                "Vegetation Growth": { w: 0.021, enabled: true, param: "Type", criteria: "Critical: Trees\nMinor: None" },
-                "Efflorescence": { w: 0.015, enabled: true, param: "% Area", criteria: "Critical: >10%\nMinor: <1%" }
+                "Seepage/Sweating": { w: 0.321, enabled: true, param: "% Area", criteria: "Critical: >5% area or active flow\nSevere: 2-5%\nModerate: 0.5-2%\nMinor: <0.5%" },
+                "Leakage": { w: 0.228, enabled: true, param: "Flow", criteria: "Critical: Pressure-driven jet\nSevere: Continuous stream\nModerate: Slow trickle\nMinor: Dampness" },
+                "Cracks": { w: 0.156, enabled: true, param: "% Grids", criteria: "Critical: >10% affected\nSevere: 5-10%\nModerate: 1-5%\nMinor: <1%" },
+                "Loosening of Blocks": { w: 0.106, enabled: true, param: "Movement", criteria: "Critical: Progressive\nSevere: Multiple loose\nModerate: Isolated\nMinor: None" },
+                "Mortar Deterioration": { w: 0.072, enabled: true, param: "% Area", criteria: "Critical: >5%\nSevere: 2-5%\nModerate: 1-2%\nMinor: <1%" },
+                "Spalling": { w: 0.049, enabled: true, param: "% Area", criteria: "Critical: >5%\nSevere: 2-5%\nModerate: 1-2%\nMinor: <1%" },
+                "Erosion": { w: 0.032, enabled: true, param: "% Area", criteria: "Critical: >5%\nSevere: 2-5%\nModerate: 1-2%\nMinor: <1%" },
+                "Vegetation Growth": { w: 0.021, enabled: true, param: "Type", criteria: "Critical: Trees (roots causing displacement)\nSevere: Shrubs with thick stems\nModerate: Weeds/grass\nMinor: None" },
+                "Efflorescence": { w: 0.015, enabled: true, param: "% Area", criteria: "Critical: >10%\nSevere: 5-10%\nModerate: 1-5%\nMinor: <1%" }
             }}
           }
         },
         "Gates": { weight: 0.15, title: "Appurtenant Gates", components: {
             "Steel Section": { weight: 0.35, defects: {
-                "Vertical Misalignment": { w: 0.395, enabled: true, param: "Offset", criteria: "Critical: >15mm\nMinor: <5mm" },
-                "Bending of Gate": { w: 0.258, enabled: true, param: "Deflection", criteria: "Critical: >20mm\nMinor: <5mm" },
-                "Slide Track Condition": { w: 0.159, enabled: true, param: "% Wear", criteria: "Critical: Jams\nMinor: <10% wear" },
-                "Corrosion": { w: 0.096, enabled: true, param: "% Corroded", criteria: "Critical: >50%\nMinor: <10%" },
-                "Last Operation History": { w: 0.057, enabled: true, param: "Years", criteria: "Critical: >5 yrs\nMinor: <1 yr" },
-                "Age of Gate": { w: 0.035, enabled: true, param: "Years", criteria: "Critical: >40 yrs\nMinor: <20 yrs" }
+                "Vertical Misalignment": { w: 0.395, enabled: true, param: "Offset", criteria: "Critical: >15mm\nSevere: 10-15mm\nModerate: 5-10mm\nMinor: <5mm" },
+                "Bending of Gate": { w: 0.258, enabled: true, param: "Deflection", criteria: "Critical: >20mm\nSevere: 10-20mm\nModerate: 5-10mm\nMinor: <5mm" },
+                "Slide Track Condition": { w: 0.159, enabled: true, param: "% Wear", criteria: "Critical: Jams / >50% wear\nSevere: High friction, 30-50%\nModerate: Roughness, 10-30%\nMinor: <10% wear" },
+                "Corrosion": { w: 0.096, enabled: true, param: "% Corroded", criteria: "Critical: >50% deep pitting\nSevere: 30-50%\nModerate: 10-30%\nMinor: <10%" },
+                "Last Operation History": { w: 0.057, enabled: true, param: "Years", criteria: "Critical: >5 yrs\nSevere: 3-5 yrs\nModerate: 1-3 yrs\nMinor: <1 yr" },
+                "Age of Gate": { w: 0.035, enabled: true, param: "Years", criteria: "Critical: >40 yrs\nSevere: 30-40 yrs\nModerate: 20-30 yrs\nMinor: <20 yrs" }
             }},
             "Conduits": { weight: 0.65, defects: {
-                "Seepage/Sweating": { w: 0.321, enabled: true, param: "% Area", criteria: "Critical: >5%\nMinor: <0.5%" },
-                "Leakage": { w: 0.228, enabled: true, param: "Flow", criteria: "Critical: Jet\nMinor: Dampness" },
-                "Cracks": { w: 0.156, enabled: true, param: "% Grids", criteria: "Critical: >10%\nMinor: <1%" },
-                "Loosening of Blocks": { w: 0.106, enabled: true, param: "Movement", criteria: "Critical: Progressive\nMinor: None" },
-                "Mortar Deterioration": { w: 0.072, enabled: true, param: "% Area", criteria: "Critical: >5%\nMinor: <1%" },
-                "Spalling": { w: 0.049, enabled: true, param: "% Area", criteria: "Critical: >5%\nMinor: <1%" },
-                "Erosion": { w: 0.032, enabled: true, param: "% Area", criteria: "Critical: >5%\nMinor: <1%" },
-                "Vegetation Growth": { w: 0.021, enabled: true, param: "Type", criteria: "Critical: Trees\nMinor: None" },
-                "Efflorescence": { w: 0.015, enabled: true, param: "% Area", criteria: "Critical: >10%\nMinor: <1%" }
+                "Seepage/Sweating": { w: 0.321, enabled: true, param: "% Area", criteria: "Critical: >5% area or active flow\nSevere: 2-5%\nModerate: 0.5-2%\nMinor: <0.5%" },
+                "Leakage": { w: 0.228, enabled: true, param: "Flow", criteria: "Critical: Pressure-driven jet\nSevere: Continuous stream\nModerate: Slow trickle\nMinor: Dampness" },
+                "Cracks": { w: 0.156, enabled: true, param: "% Grids", criteria: "Critical: >10% affected\nSevere: 5-10%\nModerate: 1-5%\nMinor: <1%" },
+                "Loosening of Blocks": { w: 0.106, enabled: true, param: "Movement", criteria: "Critical: Progressive\nSevere: Multiple loose\nModerate: Isolated\nMinor: None" },
+                "Mortar Deterioration": { w: 0.072, enabled: true, param: "% Area", criteria: "Critical: >5%\nSevere: 2-5%\nModerate: 1-2%\nMinor: <1%" },
+                "Spalling": { w: 0.049, enabled: true, param: "% Area", criteria: "Critical: >5%\nSevere: 2-5%\nModerate: 1-2%\nMinor: <1%" },
+                "Erosion": { w: 0.032, enabled: true, param: "% Area", criteria: "Critical: >5%\nSevere: 2-5%\nModerate: 1-2%\nMinor: <1%" },
+                "Vegetation Growth": { w: 0.021, enabled: true, param: "Type", criteria: "Critical: Trees\nSevere: Shrubs\nModerate: Weeds\nMinor: None" },
+                "Efflorescence": { w: 0.015, enabled: true, param: "% Area", criteria: "Critical: >10%\nSevere: 5-10%\nModerate: 1-5%\nMinor: <1%" }
             }}
           }
         },
         "Gallery": { weight: 0.09, components: {
             "Main Gallery": { weight: 1.0, defects: {
-                "Seepage": { w: 0.303, enabled: true, param: "Condition", criteria: "Critical: Pressurized\nMinor: Damp" },
-                "Leakage": { w: 0.219, enabled: true, param: "Intensity", criteria: "Critical: Jet\nMinor: Occasional droplets" },
-                "Cracks": { w: 0.154, enabled: true, param: "% Grids", criteria: "Critical: >10%\nMinor: <1%" },
-                "Drain Blockage": { w: 0.108, enabled: true, param: "% Blocked", criteria: "Critical: >75%\nMinor: <25%" },
-                "Loosening of Blocks": { w: 0.075, enabled: true, param: "Movement", criteria: "Critical: Progressive\nMinor: None" },
-                "Mortar Deterioration": { w: 0.052, enabled: true, param: "% Area", criteria: "Critical: >30%\nMinor: <5%" },
-                "Spalling": { w: 0.036, enabled: true, param: "% Area", criteria: "Critical: >10%\nMinor: <1%" },
-                "Erosion": { w: 0.024, enabled: true, param: "% Area", criteria: "Critical: >5%\nMinor: <1%" },
-                "Vegetation Growth": { w: 0.017, enabled: true, param: "Type", criteria: "Critical: Trees\nMinor: None" },
-                "Efflorescence": { w: 0.012, enabled: true, param: "% Area", criteria: "Critical: >30%\nMinor: <5%" }
+                "Seepage": { w: 0.303, enabled: true, param: "Condition", criteria: "Critical: Heavy pressurized flow\nSevere: Continuous visible flow\nModerate: Localized wet patches\nMinor: Damp surface" },
+                "Leakage": { w: 0.219, enabled: true, param: "Intensity", criteria: "Critical: Pressurized jet\nSevere: Continuous stream\nModerate: Trickling\nMinor: Occasional droplets" },
+                "Cracks": { w: 0.154, enabled: true, param: "% Grids", criteria: "Critical: >10% affected\nSevere: 5-10%\nModerate: 1-5%\nMinor: <1%" },
+                "Drain Blockage": { w: 0.108, enabled: true, param: "% Blocked", criteria: "Critical: >75% blocked/failure\nSevere: 50-75%\nModerate: 25-50%\nMinor: <25%" },
+                "Loosening of Blocks": { w: 0.075, enabled: true, param: "Movement", criteria: "Critical: Progressive\nSevere: Multiple loose\nModerate: Isolated\nMinor: None" },
+                "Mortar Deterioration": { w: 0.052, enabled: true, param: "% Area", criteria: "Critical: >30% lost\nSevere: 15-30%\nModerate: 5-15%\nMinor: <5%" },
+                "Spalling": { w: 0.036, enabled: true, param: "% Area", criteria: "Critical: >10% area or deep loss\nSevere: 5-10%\nModerate: 1-5%\nMinor: <1%" },
+                "Erosion": { w: 0.024, enabled: true, param: "% Area", criteria: "Critical: >5%\nSevere: 2-5%\nModerate: 1-2%\nMinor: <1%" },
+                "Vegetation Growth": { w: 0.017, enabled: true, param: "Type", criteria: "Critical: Trees\nSevere: Shrubs\nModerate: Weeds\nMinor: None" },
+                "Efflorescence": { w: 0.012, enabled: true, param: "% Area", criteria: "Critical: >30% extensive salt\nSevere: 15-30%\nModerate: 5-15%\nMinor: <5%" }
             }}
           }
         }
       };
 
-      // Ensure stable config load & auto-migration
       let config;
       try { config = JSON.parse(localStorage.getItem('dam_app_config')); } catch(e) {}
       if (!config || !config.database || !config.systemsData || !config.systemsData.Spillway.components.Pillar.defects["Vegetation Growth"]) { 
@@ -287,14 +345,13 @@
 
       let appState = { role: null, currentStep: 0, damName: "", totalLength: 0, numSegments: 0, segments: [] };
       let savedState = {}; let fileStore = {};
-      window.adminDashData = []; // Buffer for Excel exports
+      window.adminDashData = []; 
 
-      // --- Semantic Key Generators (Fixes Data Loading Bugs) ---
       function getStructKey(segName, loc, def) { return `struct_${segName}_${loc}_${def}`.replace(/[^a-zA-Z0-9_]/g, ''); }
       function getSysKey(sysKey, compKey, defKey) { return `sys_${sysKey}_${compKey}_${defKey}`.replace(/[^a-zA-Z0-9_]/g, ''); }
 
       // ==========================================
-      // 2. AUTHENTICATION & ROUTING (ASYNC)
+      // 2. AUTHENTICATION & ROUTING 
       // ==========================================
       window.onload = async function() {
           try {
@@ -401,7 +458,7 @@
               const data = await res.json();
               
               if (data.status === 'success' && data.data.length > 0) {
-                  window.adminDashData = data.data; // Store for global CSV export
+                  window.adminDashData = data.data; 
                   
                   const damScores = {};
                   data.data.forEach(r => {
@@ -417,7 +474,6 @@
                       options: { scales: { y: { min: 0.4, max: 1.0 } } }
                   });
 
-                  // Render Deep Accordions
                   let html = '';
                   labels.forEach(dam => {
                       html += `<details><summary style="font-size:18px;">Dam: ${dam} (DHI: ${Math.max(0.4, 1 - damScores[dam]).toFixed(3)})</summary>`;
@@ -493,7 +549,7 @@
       function openPreviewFromSrc(src) {
           document.getElementById('modalImg').src = src;
           document.getElementById('imgModal').style.display = 'flex';
-          document.getElementById('btnChange').style.display = 'none'; // Admin can't change photos
+          document.getElementById('btnChange').style.display = 'none'; 
       }
 
       function renderAdminConfig() {
@@ -577,7 +633,7 @@
       }
 
       // ==========================================
-      // 4. INSPECTOR FIELD SETUP & FETCH
+      // 4. INSPECTOR: FETCH & SEMANTIC MAPPING
       // ==========================================
       async function fetchExistingDams() {
           const sel = document.getElementById('damSelector');
@@ -619,7 +675,6 @@
           initSegments(appState.numSegments, appState.totalLength);
           savedState = {}; fileStore = {};
 
-          // Rebuild Semantic Data Mappings
           data.forEach(row => {
               if(systemsData[row.segment]) { 
                   const comp = row.component || row.location; 
@@ -675,8 +730,18 @@
       }
 
       function safe(str) { return str ? str.replace(/</g, "&lt;").replace(/>/g, "&gt;") : ""; }
-      function getNormRank(r) { return {4:1.0, 3:0.67, 2:0.33, 1:0.0}[r] || 0.0; } // Rank 1 returns 0.0 penalty
-      function getVisualHtml(def) { const info = visualInfo[def] || { desc: "Hover for details." }; return `<div class="info-icon">i<div class="tooltip-content"><strong>${def}</strong><div style="margin:5px 0;">${info.desc}</div></div></div>`; }
+      function getNormRank(r) { return {4:1.0, 3:0.67, 2:0.33, 1:0.0}[r] || 0.0; } 
+      
+      // --- WIDE TOOLTIP RENDERER ---
+      function getVisualHtml(def) { 
+          const info = visualInfo[def] || { desc: "Hover for details." }; 
+          let imgHtml = '';
+          if (info.img) {
+              imgHtml = `<img src="${info.img}" class="tooltip-img">`;
+          }
+          return `<div class="info-icon">i<div class="tooltip-content"><strong>${def}</strong><div style="margin:5px 0;">${info.desc}</div>${imgHtml}</div></div>`; 
+      }
+
       function getSeverityClass(v) { return v==4?'card-critical':v==3?'card-severe':v==2?'card-moderate':'card-minor'; }
 
       function updateProgress() { document.getElementById('progressBar').style.width = ((appState.currentStep / (appState.numSegments + 4)) * 100) + "%"; }
@@ -692,7 +757,6 @@
       }
       function closePreview(force) { if (force === true || event.target.id === 'imgModal') document.getElementById('imgModal').style.display = 'none'; }
 
-      // COMPRESSION ENGINE: IndexedDB Bypass
       function handleFileSelect(input, key) {
          if (input.files && input.files[0]) {
             const file = input.files[0]; const reader = new FileReader();
@@ -703,7 +767,7 @@
                     const MAX = 500; let w = img.width; let h = img.height;
                     if (w > h && w > MAX) { h *= MAX / w; w = MAX; } else if (h > MAX) { w *= MAX / h; h = MAX; }
                     canvas.width = w; canvas.height = h; ctx.drawImage(img, 0, 0, w, h);
-                    const compressedBase64 = canvas.toDataURL('image/jpeg', 0.5); // Fast compression
+                    const compressedBase64 = canvas.toDataURL('image/jpeg', 0.5); 
                     fileStore[key] = compressedBase64; autoSaveDraft(); 
                     
                     const btn = input.nextElementSibling;
@@ -848,7 +912,7 @@
                const h = parseFloat(seg.height) || 0; const vText = loc.includes("FOUNDATION") ? `0 - ${(h*0.2).toFixed(1)}m` : (loc.includes("FACE") ? `${(h*0.2).toFixed(1)} - ${(h*0.9).toFixed(1)}m` : `${(h*0.9).toFixed(1)} - ${h.toFixed(1)}m`);
                html += `<div style="margin-bottom:30px;"><div style="background:var(--secondary); color:white; padding:10px 15px; font-weight:700; border-radius:6px; margin-bottom:15px; display:flex; justify-content:space-between; align-items:center;">
                    <span>📍 ${loc}</span>
-                   <span style="font-size:14px; font-weight:normal;">${vText} &nbsp;|&nbsp; Wt: <input type="number" style="width:50px; padding:4px; text-align:center; border-radius:4px; border:none; outline:none;" value="${(database[loc].weight * 100).toFixed(1)}" onchange="updateWeight('struct', '${loc}', null, this.value)"> %</span>
+                   <span style="font-size:14px; font-weight:normal;">${vText} &nbsp;|&nbsp; Loc Wt: <input type="number" style="width:50px; padding:4px; text-align:center; border-radius:4px; border:none; outline:none;" value="${(database[loc].weight * 100).toFixed(1)}" onchange="updateWeight('struct', '${loc}', null, this.value)"> %</span>
                </div><div class="defects-grid">`;
                Object.keys(database[loc].defects).forEach((def, dIdx) => { 
                    if(database[loc].defects[def].enabled) {
@@ -874,7 +938,7 @@
              </div>
              <div style="text-align:center;">
                  <div style="font-size:24px; font-weight:bold; color:var(--secondary);">${sys.title || sysKey} System</div>
-                 <div style="font-size:14px; color:#7f8c8d; font-weight:bold;">System Weight: <input type="number" style="width:60px; padding:4px; text-align:center; border:1px solid #ccc; border-radius:4px;" value="${(sys.weight * 100).toFixed(1)}" onchange="updateWeight('system', '${sysKey}', null, this.value)"> %</div>
+                 <div style="font-size:14px; color:#7f8c8d; font-weight:bold;">System Wt: <input type="number" style="width:60px; padding:4px; text-align:center; border:1px solid #ccc; border-radius:4px;" value="${(sys.weight * 100).toFixed(1)}" onchange="updateWeight('system', '${sysKey}', null, this.value)"> %</div>
              </div>
              <button class="btn btn-danger" onclick="logout()">Logout</button>
           </div><form>`;
