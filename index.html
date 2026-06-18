@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise Dam Assessment Portal</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
+    
+    <style>
+        /* --- HIGH-QUALITY MODERN UI --- */
+        :root { --primary: #3b71ca; --secondary: #34495e; --bg: #f4f6f8; --success: #5cb85c; --warning: #f0ad4e; --danger: #d9534f; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background-color: var(--bg); color: #2c3e50; margin: 0; }
+        .container { max-width: 1000px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
+        
+        .header-bar { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f0f0f0; padding-bottom: 15px; margin-bottom: 25px; }
+        h1, h2, h3 { color: var(--secondary); margin-top: 0; }
+        
+        /* Buttons */
+        .btn { padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; color: white; transition: 0.2s; font-size: 15px; text-decoration: none; }
+        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn-primary { background-color: var(--primary); }
+        .btn-success { background-color: var(--success); }
+        .btn-danger { background-color: var(--danger); }
+        .btn-warning { background-color: #e67e22; }
+        
+        /* Inputs & Setup Cards */
+        .setup-card { background: #fff; padding: 30px; border: 1px solid #e0e0e0; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); margin-bottom: 30px; }
+        .setup-group { margin-bottom: 20px; }
+        .setup-group label { display: block; font-weight: 700; color: var(--secondary); margin-bottom: 8px; font-size: 14px; }
+        .setup-group input, .setup-group select { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 15px; box-sizing: border-box; outline:none; transition: 0.2s; }
+        .setup-group input:focus, .setup-group select:focus { border-color: var(--primary); box-shadow: 0 0 5px rgba(59, 113, 202, 0.3); }
+        
+        /* Admin Controls */
+        .admin-tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .admin-tab { padding: 12px 20px; background: #eee; cursor: pointer; border-radius: 6px; font-weight: bold; flex: 1; text-align: center; color: #555; transition: 0.2s; }
+        .admin-tab.active { background: var(--primary); color: white; }
+        .admin-config { background: #fdfdfd; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ddd; }
+        .toggle-switch { position: relative; display: inline-block; width: 36px; height: 20px; margin: 0 10px; vertical-align: middle; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 20px; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--success); }
+        input:checked + .slider:before { transform: translateX(16px); }
+
+        /* Inspector Defect Cards */
+        .defects-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; margin-bottom: 30px; }
+        .defect-card { padding: 15px; border: 1px solid #eee; border-radius: 8px; background: #fff; display: flex; flex-direction: column; gap: 10px; transition: transform 0.2s, box-shadow 0.2s; }
+        .defect-card:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+        .card-critical { border-left: 5px solid var(--danger); background-color: #fff5f5; }
+        .card-severe { border-left: 5px solid #e67e22; background-color: #fffcf5; }
+        .card-moderate { border-left: 5px solid var(--warning); background-color: #fffff5; }
+        .card-minor { border-left: 5px solid var(--success); background-color: #f0fff4; }
+        
+        .cam-btn { width: 36px; height: 36px; border-radius: 50%; background: #95a5a6; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; font-size: 18px; border: 2px solid transparent; transition: 0.2s; }
+        .cam-btn:hover { transform: scale(1.1); }
+        .cam-active { border-color: var(--success); }
+        .cam-btn img { width: 100%; height: 100%; object-fit: cover; }
+        
+        /* Navigation & Progress */
+        .progress { height: 8px; background-color: #e9ecef; margin-bottom: 20px; border-radius: 4px; overflow: hidden; }
+        .progress-bar { height: 100%; background-color: var(--primary); width: 0%; transition: width 0.3s ease; }
+        .nav-arrow { background: none; border: none; font-size: 32px; color: #2c3e50; cursor: pointer; padding: 0 15px; transition: transform 0.2s, color 0.2s; }
+        .nav-arrow:hover { color: var(--primary); transform: scale(1.1); }
+        
+        /* Image Preview Modal */
+        .modal { display: none; position: fixed; top:0; left:0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 5000; justify-content: center; align-items: center; }
+        .modal-content { max-width: 90%; max-height: 90vh; text-align: center; display: flex; flex-direction: column; gap: 15px; }
+        .modal img { max-width: 100%; max-height: 70vh; border-radius: 8px; border: 2px solid white; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        
+        /* Report Dashboard UI */
+        .report-flex { display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; }
+        .verdict-box { flex: 1; text-align: center; padding: 40px 20px; border-radius: 8px; color: white; box-shadow: 0 4px 12px rgba(0,0,0,0.1); min-width: 280px;}
+        .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
+        .stat-card { background: #fff; padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #e0e0e0; }
+        .severity-tag { padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; color: white; }
+        .rank-4 { background: var(--danger); } .rank-3 { background: #e67e22; } .rank-2 { background: var(--warning); color:#333; } .rank-1 { background: var(--success); }
+
+        /* --- DEEPLY NESTED ACCORDIONS FOR LOGS --- */
+        details { background: #fff; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 10px; overflow: hidden; transition: 0.2s; }
+        summary { padding: 15px 20px; font-weight: bold; background: #f8f9fa; cursor: pointer; outline: none; display: flex; align-items: center; color: var(--secondary); font-size: 16px; border-bottom: 1px solid transparent; }
+        details[open] > summary { border-bottom: 1px solid #ddd; background: #e8f4f8; color: var(--primary); }
+        
+        details details { margin: 10px 15px; border-left: 4px solid var(--primary); border-radius: 0; border-top: none; border-right: none; border-bottom: none; box-shadow: none; }
+        details details > summary { background: #f1f5f9; font-size: 14px; color: #2c3e50; }
+        details details[open] > summary { background: #e2e8f0; border-bottom: 1px solid #ccc; }
+        
+        details details details { margin: 10px 15px; border-left: 4px solid var(--warning); }
+        details details details > summary { background: #fdfbf7; font-size: 13px; color: #d35400; }
+        details details details[open] > summary { background: #fae5d3; border-bottom: 1px solid #ebccd1; }
+
+        .log-item { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; border-bottom: 1px solid #eee; background: #fff; font-size: 14px; }
+        .log-item:last-child { border-bottom: none; }
+        .log-img { width: 60px; height: 60px; object-fit: cover; border-radius: 6px; border: 1px solid #ccc; cursor: pointer; margin-right: 15px; transition: 0.2s; }
+        .log-img:hover { transform: scale(1.1); }
+        
+        /* Tooltips */
+        .info-icon { width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; color: white; font-size: 13px; cursor: pointer; background: #3498db; font-family: serif; font-weight: bold; position: relative; margin-left: 8px;}
+        .tooltip-content { display: none; position: absolute; bottom: 35px; left: 50%; transform: translateX(-50%); width: 220px; background: #2c3e50; color: #fff; padding: 12px; border-radius: 6px; box-shadow: 0 8px 20px rgba(0,0,0,0.2); z-index: 1000; font-size: 12px; font-weight: normal; text-align: left; }
+        .info-icon:hover .tooltip-content { display: block; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+      <div class="progress"><div id="progressBar" class="progress-bar"></div></div>
+      <div id="appContent">
+        <div style="text-align:center; padding:40px;">
+          <h2 style="color:var(--primary);">Loading Application...</h2>
+          <p style="color:#7f8c8d;">Please wait while the environment initializes.</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="imgModal" class="modal" onclick="closePreview(event)">
+      <div class="modal-content">
+        <img id="modalImg" src="">
+        <div style="display:flex; gap:10px; justify-content:center; margin-top:15px;">
+          <button class="btn btn-warning" id="btnChange">Retake Photo</button>
+          <button class="btn btn-danger" onclick="closePreview(true)">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // ==========================================
+      // CRASH RECOVERY
+      // ==========================================
+      window.onerror = function(msg, url, lineNo) {
+          const contentBox = document.getElementById('appContent');
+          if(contentBox && contentBox.innerHTML.includes('Loading')) {
+              contentBox.innerHTML = `
+                  <div style="text-align:center; padding:40px; color:var(--danger);">
+                      <h2>⚠️ Cache Conflict</h2>
+                      <p style="color:#2c3e50;">Memory conflict detected. Please clear the cache to load the new Enterprise version.</p>
+                      <button class="btn btn-danger" onclick="localStorage.clear(); localforage.clear(); location.reload();" style="padding:15px 30px; font-size:18px; margin-top:20px;">Clear Cache & Restart App</button>
+                  </div>`;
+          }
+      };
+
+      // ==========================================
+      // 1. MASTER FACTORY DEFAULTS (Full Catalog)
+      // ==========================================
+      const visualInfo = {
+        "Cracks": { desc: "Linear openings on masonry surface." },
+        "Loosening of Blocks": { desc: "Blocks show movement/gaps." },
+        "Mortar Deterioration": { desc: "Joints recessed or washed out." },
+        "Spalling": { desc: "Surface flakes/fragments detach." },
+        "Leakage": { desc: "Visible water outflow." },
+        "Seepage/Sweating": { desc: "Wet patches or discoloration." },
+        "Seepage": { desc: "Wet patches or discoloration." },
+        "Erosion": { desc: "Surface wear, depressions, grooves." },
+        "Vegetation Growth": { desc: "Weeds/shrubs in joints." },
+        "Efflorescence": { desc: "White salt deposits." },
+        "Vertical Misalignment": { desc: "Gate tilted or uneven." },
+        "Bending of Gate": { desc: "Gate leaf curved." },
+        "Slide Track Condition": { desc: "Tracks worn/obstructed." },
+        "Corrosion": { desc: "Rust, pitting, metal loss." },
+        "Last Operation History": { desc: "Stiffness or noise." },
+        "Age of Gate": { desc: "Old components." },
+        "Drain Blockage": { desc: "Obstruction in drainage systems." },
+        "Water Ponding": { desc: "Standing water on crest." }
+      };
+
+      const defaultDatabase = {
+        "DOWNSTREAM FOUNDATION": { weight: 0.39, defects: {
+            "Cracks": { w: 0.290, enabled: true, param: "Crack Width", criteria: "Critical: >20mm\nSevere: 10-20mm\nModerate: 5-10mm\nMinor: <5mm" },
+            "Loosening of Blocks": { w: 0.211, enabled: true, param: "Movement", criteria: "Critical: Progressive\nSevere: Multiple loose\nModerate: Isolated\nMinor: None" },
+            "Mortar Deterioration": { w: 0.152, enabled: true, param: "Area Lost", criteria: "Critical: >0.2m²\nSevere: 0.08-0.2m²\nModerate: 0.02-0.08m²\nMinor: <0.02m²" },
+            "Spalling": { w: 0.110, enabled: true, param: "Area Spalled", criteria: "Critical: >0.4m²\nSevere: 0.2-0.4m²\nModerate: 0.05-0.2m²\nMinor: <0.05m²" },
+            "Leakage": { w: 0.079, enabled: true, param: "Intensity", criteria: "Critical: Jet\nSevere: Stream\nModerate: Trickle\nMinor: Damp" },
+            "Seepage": { w: 0.057, enabled: true, param: "Wet Area", criteria: "Critical: Flowing\nSevere: >500cm²\nModerate: 100-500cm²\nMinor: <100cm²" },
+            "Erosion": { w: 0.040, enabled: true, param: "Area Eroded", criteria: "Critical: >0.4m²\nSevere: 0.2-0.4m²\nModerate: 0.05-0.2m²\nMinor: <0.05m²" },
+            "Vegetation Growth": { w: 0.029, enabled: true, param: "Type", criteria: "Critical: Trees\nSevere: Shrubs\nModerate: Weeds\nMinor: None" },
+            "Efflorescence": { w: 0.016, enabled: true, param: "Area", criteria: "Critical: >1.0m²\nSevere: 0.5-1.0m²\nModerate: 0.1-0.5m²\nMinor: <0.1m²" }
+        }},
+        "UPSTREAM FOUNDATION": { weight: 0.329, defects: {
+            "Cracks": { w: 0.365, enabled: true, param: "Crack Width", criteria: "Critical: Wide, open\nSevere: Well-defined\nModerate: Faint\nMinor: Hairline" },
+            "Loosening of Blocks": { w: 0.263, enabled: true, param: "Alignment", criteria: "Critical: Progressive\nSevere: Multiple loose\nModerate: Slight recess\nMinor: Intact" },
+            "Mortar Deterioration": { w: 0.188, enabled: true, param: "Joints", criteria: "Critical: Large loss\nSevere: Visible loss\nModerate: Recessed\nMinor: Thinning" },
+            "Spalling": { w: 0.120, enabled: true, param: "Surface", criteria: "Critical: Deep cavity\nSevere: Visible spall\nModerate: Small patch\nMinor: Roughening" },
+            "Erosion": { w: 0.064, enabled: true, param: "Texture", criteria: "Critical: Deep depression\nSevere: Grooves\nModerate: Shallow marks\nMinor: Texture change" }
+        }},
+        "DOWNSTREAM FACE": { weight: 0.146, defects: {
+            "Cracks": { w: 0.290, enabled: true, param: "Crack Width", criteria: "Critical: >20mm\nSevere: 10-20mm\nModerate: 5-10mm\nMinor: <5mm" },
+            "Loosening of Blocks": { w: 0.211, enabled: true, param: "Movement", criteria: "Critical: Progressive\nSevere: Multiple\nModerate: Isolated\nMinor: None" },
+            "Mortar Deterioration": { w: 0.152, enabled: true, param: "Area Lost", criteria: "Critical: >0.2m²\nSevere: 0.08-0.2m²\nModerate: 0.02-0.08m²\nMinor: <0.02m²" },
+            "Spalling": { w: 0.110, enabled: true, param: "Area Spalled", criteria: "Critical: >0.4m²\nSevere: 0.2-0.4m²\nModerate: 0.05-0.2m²\nMinor: <0.05m²" },
+            "Leakage": { w: 0.079, enabled: true, param: "Intensity", criteria: "Critical: Jet\nSevere: Stream\nModerate: Trickle\nMinor: Damp" },
+            "Seepage": { w: 0.057, enabled: true, param: "Wet Area", criteria: "Critical: Flowing\nSevere: >500cm²\nModerate: 100-500cm²\nMinor: <100cm²" },
+            "Erosion": { w: 0.040, enabled: true, param: "Area Eroded", criteria: "Critical: >0.4m²\nSevere: 0.2-0.4m²\nModerate: 0.05-0.2m²\nMinor: <0.05m²" },
+            "Vegetation Growth": { w: 0.029, enabled: true, param: "Type", criteria: "Critical: Trees\nSevere: Shrubs\nModerate: Weeds\nMinor: None" },
+            "Efflorescence": { w: 0.016, enabled: true, param: "Area", criteria: "Critical: >1.0m²\nSevere: 0.5-1.0m²\nModerate: 0.1-0.5m²\nMinor: <0.1m²" }
+        }},
+        "UPSTREAM FACE": { weight: 0.085, defects: {
+            "Cracks": { w: 0.324, enabled: true, param: "Crack Width", criteria: "Critical: Wide, open\nSevere: Well-defined\nModerate: Faint\nMinor: Hairline" },
+            "Loosening of Blocks": { w: 0.236, enabled: true, param: "Alignment", criteria: "Critical: Progressive\nSevere: Multiple loose\nModerate: Slight recess\nMinor: Intact" },
+            "Mortar Deterioration": { w: 0.171, enabled: true, param: "Joints", criteria: "Critical: Large loss\nSevere: Visible loss\nModerate: Recessed\nMinor: Thinning" },
+            "Spalling": { w: 0.119, enabled: true, param: "Surface", criteria: "Critical: Deep cavity\nSevere: Visible spall\nModerate: Small patch\nMinor: Roughening" },
+            "Erosion": { w: 0.080, enabled: true, param: "Texture", criteria: "Critical: Deep depression\nSevere: Grooves\nModerate: Shallow marks\nMinor: Texture change" },
+            "Vegetation Growth": { w: 0.048, enabled: true, param: "Type", criteria: "Critical: Trees\nSevere: Shrubs\nModerate: Weeds\nMinor: None" },
+            "Efflorescence": { w: 0.022, enabled: true, param: "Area", criteria: "Critical: >1.0m²\nSevere: 0.5-1.0m²\nModerate: 0.1-0.5m²\nMinor: <0.1m²" }
+        }},
+        "CREST": { weight: 0.049, defects: {
+            "Cracks": { w: 0.324, enabled: true, param: "Crack Width", criteria: "Critical: >20mm\nSevere: 10-20mm\nModerate: 5-10mm\nMinor: <5mm" },
+            "Mortar Deterioration": { w: 0.236, enabled: true, param: "Area Lost", criteria: "Critical: >0.2m²\nSevere: 0.08-0.2m²\nModerate: 0.02-0.08m²\nMinor: <0.02m²" },
+            "Spalling": { w: 0.171, enabled: true, param: "Area Spalled", criteria: "Critical: >0.4m²\nSevere: 0.2-0.4m²\nModerate: 0.05-0.2m²\nMinor: <0.05m²" },
+            "Erosion": { w: 0.119, enabled: true, param: "Area Eroded", criteria: "Critical: >0.4m²\nSevere: 0.2-0.4m²\nModerate: 0.05-0.2m²\nMinor: <0.05m²" },
+            "Water Ponding": { w: 0.080, enabled: true, param: "Depth", criteria: "Critical: >5cm\nSevere: 3-5cm\nModerate: 1-3cm\nMinor: <1cm" },
+            "Vegetation Growth": { w: 0.048, enabled: true, param: "Type", criteria: "Critical: Trees\nSevere: Shrubs\nModerate: Weeds\nMinor: None" },
+            "Efflorescence": { w: 0.022, enabled: true, param: "Area", criteria: "Critical: >1.0m²\nSevere: 0.5-1.0m²\nModerate: 0.1-0.5m²\nMinor: <0.1m²" }
+        }}
+      };
+
+      const defaultSystems = {
+        "Spillway": { weight: 0.28, components: {
+            "Steel Gates": { weight: 0.35, defects: {
+                "Vertical Misalignment": { w: 0.395, enabled: true, param: "Offset", criteria: "Critical: >15mm\nMinor: <5mm" },
+                "Bending of Gate": { w: 0.258, enabled: true, param: "Deflection", criteria: "Critical: >20mm\nMinor: <5mm" },
+                "Slide Track Condition": { w: 0.159, enabled: true, param: "% Wear", criteria: "Critical: Jams\nMinor: <10% wear" },
+                "Corrosion": { w: 0.096, enabled: true, param: "% Corroded", criteria: "Critical: >50%\nMinor: <10%" },
+                "Last Operation History": { w: 0.057, enabled: true, param: "Years", criteria: "Critical: >5 yrs\nMinor: <1 yr" },
+                "Age of Gate": { w: 0.035, enabled: true, param: "Years", criteria: "Critical: >40 yrs\nMinor: <20 yrs" }
+            }},
+            "Pillar": { weight: 0.65, defects: {
+                "Seepage/Sweating": { w: 0.321, enabled: true, param: "% Area", criteria: "Critical: >5%\nMinor: <0.5%" },
+                "Leakage": { w: 0.228, enabled: true, param: "Flow", criteria: "Critical: Jet\nMinor: Dampness" },
+                "Cracks": { w: 0.156, enabled: true, param: "% Grids", criteria: "Critical: >10%\nMinor: <1%" },
+                "Loosening of Blocks": { w: 0.106, enabled: true, param: "Movement", criteria: "Critical: Progressive\nMinor: None" },
+                "Mortar Deterioration": { w: 0.072, enabled: true, param: "% Area", criteria: "Critical: >5%\nMinor: <1%" },
+                "Spalling": { w: 0.049, enabled: true, param: "% Area", criteria: "Critical: >5%\nMinor: <1%" },
+                "Erosion": { w: 0.032, enabled: true, param: "% Area", criteria: "Critical: >5%\nMinor: <1%" },
+                "Vegetation Growth": { w: 0.021, enabled: true, param: "Type", criteria: "Critical: Trees\nMinor: None" },
+                "Efflorescence": { w: 0.015, enabled: true, param: "% Area", criteria: "Critical: >10%\nMinor: <1%" }
+            }}
+          }
+        },
+        "Gates": { weight: 0.15, title: "Appurtenant Gates", components: {
+            "Steel Section": { weight: 0.35, defects: {
+                "Vertical Misalignment": { w: 0.395, enabled: true, param: "Offset", criteria: "Critical: >15mm\nMinor: <5mm" },
+                "Bending of Gate": { w: 0.258, enabled: true, param: "Deflection", criteria: "Critical: >20mm\nMinor: <5mm" },
+                "Slide Track Condition": { w: 0.159, enabled: true, param: "% Wear", criteria: "Critical: Jams\nMinor: <10% wear" },
+                "Corrosion": { w: 0.096, enabled: true, param: "% Corroded", criteria: "Critical: >50%\nMinor: <10%" },
+                "Last Operation History": { w: 0.057, enabled: true, param: "Years", criteria: "Critical: >5 yrs\nMinor: <1 yr" },
+                "Age of Gate": { w: 0.035, enabled: true, param: "Years", criteria: "Critical: >40 yrs\nMinor: <20 yrs" }
+            }},
+            "Conduits": { weight: 0.65, defects: {
+                "Seepage/Sweating": { w: 0.321, enabled: true, param: "% Area", criteria: "Critical: >5%\nMinor: <0.5%" },
+                "Leakage": { w: 0.228, enabled: true, param: "Flow", criteria: "Critical: Jet\nMinor: Dampness" },
+                "Cracks": { w: 0.156, enabled: true, param: "% Grids", criteria: "Critical: >10%\nMinor: <1%" },
+                "Loosening of Blocks": { w: 0.106, enabled: true, param: "Movement", criteria: "Critical: Progressive\nMinor: None" },
+                "Mortar Deterioration": { w: 0.072, enabled: true, param: "% Area", criteria: "Critical: >5%\nMinor: <1%" },
+                "Spalling": { w: 0.049, enabled: true, param: "% Area", criteria: "Critical: >5%\nMinor: <1%" },
+                "Erosion": { w: 0.032, enabled: true, param: "% Area", criteria: "Critical: >5%\nMinor: <1%" },
+                "Vegetation Growth": { w: 0.021, enabled: true, param: "Type", criteria: "Critical: Trees\nMinor: None" },
+                "Efflorescence": { w: 0.015, enabled: true, param: "% Area", criteria: "Critical: >10%\nMinor: <1%" }
+            }}
+          }
+        },
+        "Gallery": { weight: 0.09, components: {
+            "Main Gallery": { weight: 1.0, defects: {
+                "Seepage": { w: 0.303, enabled: true, param: "Condition", criteria: "Critical: Pressurized\nMinor: Damp" },
+                "Leakage": { w: 0.219, enabled: true, param: "Intensity", criteria: "Critical: Jet\nMinor: Occasional droplets" },
+                "Cracks": { w: 0.154, enabled: true, param: "% Grids", criteria: "Critical: >10%\nMinor: <1%" },
+                "Drain Blockage": { w: 0.108, enabled: true, param: "% Blocked", criteria: "Critical: >75%\nMinor: <25%" },
+                "Loosening of Blocks": { w: 0.075, enabled: true, param: "Movement", criteria: "Critical: Progressive\nMinor: None" },
+                "Mortar Deterioration": { w: 0.052, enabled: true, param: "% Area", criteria: "Critical: >30%\nMinor: <5%" },
+                "Spalling": { w: 0.036, enabled: true, param: "% Area", criteria: "Critical: >10%\nMinor: <1%" },
+                "Erosion": { w: 0.024, enabled: true, param: "% Area", criteria: "Critical: >5%\nMinor: <1%" },
+                "Vegetation Growth": { w: 0.017, enabled: true, param: "Type", criteria: "Critical: Trees\nMinor: None" },
+                "Efflorescence": { w: 0.012, enabled: true, param: "% Area", criteria: "Critical: >30%\nMinor: <5%" }
+            }}
+          }
+        }
+      };
+
+      // Ensure stable config load & auto-migration
+      let config;
+      try { config = JSON.parse(localStorage.getItem('dam_app_config')); } catch(e) {}
+      if (!config || !config.database || !config.systemsData || !config.systemsData.Spillway.components.Pillar.defects["Vegetation Growth"]) { 
+          config = { database: JSON.parse(JSON.stringify(defaultDatabase)), systemsData: JSON.parse(JSON.stringify(defaultSystems)) }; 
+          localStorage.setItem('dam_app_config', JSON.stringify(config));
+      }
+      
+      let database = config.database;
+      let systemsData = config.systemsData;
+
+      let appState = { role: null, currentStep: 0, damName: "", totalLength: 0, numSegments: 0, segments: [] };
+      let savedState = {}; let fileStore = {};
+      window.adminDashData = []; // Buffer for Excel exports
+
+      // --- Semantic Key Generators (Fixes Data Loading Bugs) ---
+      function getStructKey(segName, loc, def) { return `struct_${segName}_${loc}_${def}`.replace(/[^a-zA-Z0-9_]/g, ''); }
+      function getSysKey(sysKey, compKey, defKey) { return `sys_${sysKey}_${compKey}_${defKey}`.replace(/[^a-zA-Z0-9_]/g, ''); }
+
+      // ==========================================
+      // 2. AUTHENTICATION & ROUTING (ASYNC)
+      // ==========================================
+      window.onload = async function() {
+          try {
+              const session = localStorage.getItem('dam_app_session');
+              if (session) { appState.role = session; }
+
+              const isDraftLoaded = await checkAndLoadDraft();
+              if (!isDraftLoaded) {
+                  if (appState.role === 'admin') { renderAdminDashboard(); }
+                  else if (appState.role === 'inspector') { renderInspectorSetup(); }
+                  else { renderLogin(); }
+              }
+          } catch(e) { window.onerror(e.toString(), "index.html", 0); }
+      };
+
+      function renderLogin() {
+          document.getElementById('progressBar').style.width = "0%";
+          document.getElementById('appContent').innerHTML = `
+            <div style="max-width: 450px; margin: 40px auto; text-align: center;">
+              <h2 style="color: var(--primary); margin-bottom:30px; font-size:32px;">Dam Assessment Portal</h2>
+              <div class="setup-card" style="text-align: left; border-top: 5px solid var(--primary);">
+                 <div style="font-size: 20px; font-weight: bold; margin-bottom: 20px; text-align:center; color:var(--secondary);">Secure Login</div>
+                 <div class="setup-group"><label>Username</label><input type="text" id="loginUser" placeholder="inspector"></div>
+                 <div class="setup-group"><label>Password</label><input type="password" id="loginPass" placeholder="****"></div>
+                 <button class="btn btn-primary" id="loginBtn" style="width: 100%; margin-top: 10px; font-size:18px;" onclick="handleLogin()">Sign In</button>
+                 <p id="loginErr" style="color:var(--danger); text-align:center; margin-top:15px; font-weight:bold; display:none;">Invalid Credentials</p>
+              </div>
+            </div>
+          `;
+      }
+
+      async function handleLogin() {
+          const u = document.getElementById('loginUser').value.trim();
+          const p = document.getElementById('loginPass').value.trim();
+          const err = document.getElementById('loginErr');
+          const btn = document.getElementById('loginBtn');
+          
+          btn.innerText = "Authenticating..."; btn.disabled = true;
+          
+          try {
+              const response = await fetch('https://dam-api-1ix3.onrender.com/api/login', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ username: u, password: p })
+              });
+              
+              const data = await response.json();
+              
+              if (response.ok && data.status === "success") {
+                  appState.role = data.role;
+                  localStorage.setItem('dam_app_session', data.role);
+                  localStorage.setItem('dam_app_token', data.token); 
+                  
+                  if (data.role === 'admin') renderAdminDashboard();
+                  else renderInspectorSetup();
+              } else {
+                  err.innerText = data.detail || "Invalid Credentials";
+                  err.style.display = 'block';
+              }
+          } catch(e) {
+              err.innerText = "Must be connected to internet for initial login.";
+              err.style.display = 'block';
+          }
+          btn.innerText = "Sign In"; btn.disabled = false;
+      }
+
+      function logout() { 
+          appState.role = null; 
+          localStorage.removeItem('dam_app_session'); 
+          localStorage.removeItem('dam_app_token');
+          renderLogin(); 
+      }
+
+      // ==========================================
+      // 3. ADMIN: DASHBOARD & CONFIGURATION
+      // ==========================================
+      function getAdminTabsHtml(active) {
+          return `
+            <div class="header-bar"><h2>Admin Portal</h2><button class="btn btn-danger" onclick="logout()">Logout</button></div>
+            <div class="admin-tabs">
+                <div class="admin-tab ${active==='dash'?'active':''}" onclick="renderAdminDashboard()">📊 Live Dashboard</div>
+                <div class="admin-tab ${active==='config'?'active':''}" onclick="renderAdminConfig()">⚙️ Configuration Engine</div>
+            </div>
+          `;
+      }
+
+      async function renderAdminDashboard() {
+          document.getElementById('appContent').innerHTML = getAdminTabsHtml('dash') + `
+              <div style="background:white; padding:20px; border-radius:8px; border:1px solid #eee; margin-bottom:20px;">
+                  <canvas id="dhiChart" height="100"></canvas>
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-top:30px; margin-bottom:15px;">
+                 <h3 style="margin:0;">Synced Database Records</h3>
+                 <button class="btn btn-success" onclick="downloadAdminCSV()">📥 Download All as CSV</button>
+              </div>
+              <div id="dashData"><div style="text-align:center; padding:30px; color:#7f8c8d;">Fetching records from cloud...</div></div>
+          `;
+          
+          try {
+              const token = localStorage.getItem('dam_app_token');
+              const res = await fetch('https://dam-api-1ix3.onrender.com/api/assessments', {
+                  headers: { 'Authorization': `Bearer ${token}` }
+              });
+              const data = await res.json();
+              
+              if (data.status === 'success' && data.data.length > 0) {
+                  window.adminDashData = data.data; // Store for global CSV export
+                  
+                  const damScores = {};
+                  data.data.forEach(r => {
+                      if(!damScores[r.damName]) damScores[r.damName] = 0;
+                      damScores[r.damName] += parseFloat(r.weightedDsi || 0);
+                  });
+                  const labels = Object.keys(damScores);
+                  const values = labels.map(d => Math.max(0.4, 1 - damScores[d]));
+                  
+                  new Chart(document.getElementById('dhiChart'), {
+                      type: 'bar',
+                      data: { labels: labels, datasets: [{ label: 'Dam Health Index (DHI)', data: values, backgroundColor: '#3b71ca' }] },
+                      options: { scales: { y: { min: 0.4, max: 1.0 } } }
+                  });
+
+                  // Render Deep Accordions
+                  let html = '';
+                  labels.forEach(dam => {
+                      html += `<details><summary style="font-size:18px;">Dam: ${dam} (DHI: ${Math.max(0.4, 1 - damScores[dam]).toFixed(3)})</summary>`;
+                      const damRows = data.data.filter(r => r.damName === dam);
+                      
+                      const structRows = damRows.filter(r => !["Spillway", "Gates", "Gallery"].includes(r.segment));
+                      if (structRows.length > 0) {
+                          html += `<details><summary>🏢 Structural Segments</summary>`;
+                          const segs = [...new Set(structRows.map(r=>r.segment))];
+                          segs.forEach(seg => {
+                              html += `<details><summary>${seg}</summary>`;
+                              const locs = [...new Set(structRows.filter(r=>r.segment===seg).map(r=>r.location))];
+                              locs.forEach(loc => {
+                                  html += `<details><summary>📍 ${loc}</summary>`;
+                                  structRows.filter(r=>r.segment===seg && r.location===loc).forEach(r => {
+                                      const img = r.image ? `<img src="${r.image.startsWith('data') ? r.image : 'data:image/jpeg;base64,'+r.image}" class="log-img" onclick="openPreviewFromSrc(this.src)">` : '';
+                                      html += `<div class="log-item">
+                                          <div><strong>${r.defect}</strong> <br><span class="severity-tag rank-${r.rank}" style="display:inline-block; margin-top:5px;">Rank ${r.rank}</span></div>
+                                          ${img}
+                                      </div>`;
+                                  });
+                                  html += `</details>`;
+                              });
+                              html += `</details>`;
+                          });
+                          html += `</details>`;
+                      }
+
+                      const sysRows = damRows.filter(r => ["Spillway", "Gates", "Gallery"].includes(r.segment));
+                      if (sysRows.length > 0) {
+                          html += `<details><summary>⚙️ Non-Structural Systems</summary>`;
+                          const sysNames = [...new Set(sysRows.map(r=>r.segment))];
+                          sysNames.forEach(sys => {
+                              html += `<details><summary>${sys} System</summary>`;
+                              const comps = [...new Set(sysRows.filter(r=>r.segment===sys).map(r=>r.component))];
+                              comps.forEach(comp => {
+                                  html += `<details><summary>📍 ${comp}</summary>`;
+                                  sysRows.filter(r=>r.segment===sys && r.component===comp).forEach(r => {
+                                      const img = r.image ? `<img src="${r.image.startsWith('data') ? r.image : 'data:image/jpeg;base64,'+r.image}" class="log-img" onclick="openPreviewFromSrc(this.src)">` : '';
+                                      html += `<div class="log-item">
+                                          <div><strong>${r.defect}</strong> <br><span class="severity-tag rank-${r.rank}" style="display:inline-block; margin-top:5px;">Rank ${r.rank}</span></div>
+                                          ${img}
+                                      </div>`;
+                                  });
+                                  html += `</details>`;
+                              });
+                              html += `</details>`;
+                          });
+                          html += `</details>`;
+                      }
+                      html += `</details>`;
+                  });
+                  document.getElementById('dashData').innerHTML = html;
+              } else {
+                  document.getElementById('dashData').innerHTML = '<div style="text-align:center; padding:30px; color:#7f8c8d;">No data synced yet.</div>';
+              }
+          } catch(e) {
+              document.getElementById('dashData').innerHTML = '<div style="color:red; text-align:center; padding:20px;">Error connecting to API. Session may have expired.</div>';
+          }
+      }
+
+      function downloadAdminCSV() {
+          if(!window.adminDashData || window.adminDashData.length === 0) return alert("No data available to download.");
+          const headers = ["Dam Name", "Segment/System", "Seg/Sys Weight", "Range", "Height", "Location", "Component", "Loc/Comp Weight", "Defect", "Severity Rank", "Norm Rank", "Defect Weight", "DSI", "Weighted DSI"];
+          const rows = window.adminDashData.map(r => [
+              r.damName, r.segment, r.segWeight, r.range || "", r.height || "", r.location || "", r.component || "", r.locWeight, r.defect, r.rank, r.normRank, r.defectWeight, r.dsi, r.weightedDsi
+          ]);
+          const csvContent = headers.join(",") + "\n" + rows.map(r => r.map(item => `"${(item ? item.toString() : "").replace(/"/g, '""')}"`).join(",")).join("\n");
+          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+          const link = document.createElement("a"); link.setAttribute("href", URL.createObjectURL(blob)); link.setAttribute("download", `Admin_All_Assessments.csv`); document.body.appendChild(link); link.click(); document.body.removeChild(link);
+      }
+
+      function openPreviewFromSrc(src) {
+          document.getElementById('modalImg').src = src;
+          document.getElementById('imgModal').style.display = 'flex';
+          document.getElementById('btnChange').style.display = 'none'; // Admin can't change photos
+      }
+
+      function renderAdminConfig() {
+          let html = getAdminTabsHtml('config') + `
+              <p style="color:#7f8c8d; margin-bottom:20px;">Edit component weights (as %), toggle defect visibility, and manage the defect list. Changes apply globally to the Inspector app.</p>
+              <h3 style="color:#2c3e50; border-bottom: 2px solid #eee; padding-bottom: 10px;">🏢 Structural Segments</h3>
+          `;
+
+          Object.keys(database).forEach(loc => {
+              html += `<div class="admin-config">
+                  <div style="margin-bottom: 15px; font-size:16px; font-weight:bold; color:var(--secondary);">
+                      <span>📍 ${loc}</span>
+                      <span style="float:right;">Weight: <input type="number" style="width:60px; padding:4px; text-align:center; border-radius:4px; border:1px solid #ccc;" value="${(database[loc].weight * 100).toFixed(1)}" onchange="database['${loc}'].weight = this.value / 100"> %</span>
+                  </div>
+                  <table style="width:100%; border-collapse:collapse; margin-bottom:15px; font-size:14px;">
+                      <tr style="border-bottom:2px solid #ccc; text-align:left;"><th>Defect Name</th><th>Weight (%)</th><th>Visible</th><th>Action</th></tr>`;
+              
+              Object.keys(database[loc].defects).forEach(def => {
+                  const d = database[loc].defects[def];
+                  html += `<tr style="border-bottom:1px solid #eee;">
+                      <td style="padding:8px 0; font-weight:bold;">${def}</td>
+                      <td><input type="number" style="width:60px; padding:4px; border:1px solid #ccc; border-radius:4px;" value="${(d.w * 100).toFixed(1)}" onchange="database['${loc}'].defects['${def}'].w = this.value / 100"> %</td>
+                      <td><label class="toggle-switch"><input type="checkbox" ${d.enabled ? 'checked' : ''} onchange="database['${loc}'].defects['${def}'].enabled = this.checked"><span class="slider"></span></label></td>
+                      <td><button class="btn btn-danger" style="padding:4px 10px; font-size:12px;" onclick="deleteDefect('database', '${loc}', null, '${def}')">Delete</button></td>
+                  </tr>`;
+              });
+              html += `</table><button class="btn btn-primary" style="font-size:13px; padding:8px 15px; background:white; color:var(--primary); border:1px solid var(--primary);" onclick="addDefect('database', '${loc}', null)">+ Add New Defect</button></div>`;
+          });
+
+          html += `<h3 style="color:#2c3e50; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 40px;">⚙️ Non-Structural Systems</h3>`;
+          Object.keys(systemsData).forEach(sysKey => {
+              html += `<div class="admin-config" style="border-left: 4px solid var(--warning);">
+                  <div style="background:var(--warning); color:white; padding:10px; border-radius:6px; margin-bottom: 15px; font-size:16px; font-weight:bold;">
+                      <span>⚙️ ${sysKey} System</span>
+                      <span style="float:right;">Weight: <input type="number" style="width:60px; padding:4px; color:black; text-align:center; border-radius:4px; border:none;" value="${(systemsData[sysKey].weight * 100).toFixed(1)}" onchange="systemsData['${sysKey}'].weight = this.value / 100"> %</span>
+                  </div>`;
+              
+              Object.keys(systemsData[sysKey].components).forEach(compKey => {
+                  html += `<div style="margin-left: 20px; padding: 15px; background: white; border-radius: 6px; border: 1px solid #eee; margin-bottom: 15px;">
+                      <div style="margin-bottom: 10px; display:flex; justify-content:space-between; align-items:center; background:#f8f9fa; padding:10px; border-radius:4px;">
+                        <strong>Component: ${compKey}</strong>
+                        <span>Wt: <input type="number" style="width:50px; padding:4px; border:1px solid #ccc; border-radius:4px;" value="${(systemsData[sysKey].components[compKey].weight * 100).toFixed(1)}" onchange="systemsData['${sysKey}'].components['${compKey}'].weight = this.value / 100"> %</span>
+                      </div>
+                      <table style="width:100%; border-collapse:collapse; margin-bottom:10px; font-size:14px;">`;
+                  
+                  Object.keys(systemsData[sysKey].components[compKey].defects).forEach(defKey => {
+                      const d = systemsData[sysKey].components[compKey].defects[defKey];
+                      html += `<tr style="border-bottom:1px solid #f9f9f9;">
+                          <td style="padding:6px 0; font-weight:bold;">${defKey}</td>
+                          <td><input type="number" style="width:60px; padding:4px; border:1px solid #ccc; border-radius:4px;" value="${(d.w * 100).toFixed(1)}" onchange="systemsData['${sysKey}'].components['${compKey}'].defects['${defKey}'].w = this.value / 100"> %</td>
+                          <td><label class="toggle-switch"><input type="checkbox" ${d.enabled ? 'checked' : ''} onchange="systemsData['${sysKey}'].components['${compKey}'].defects['${defKey}'].enabled = this.checked"><span class="slider"></span></label></td>
+                          <td><button class="btn btn-danger" style="padding:4px 10px; font-size:12px;" onclick="deleteDefect('systems', '${sysKey}', '${compKey}', '${defKey}')">Delete</button></td>
+                      </tr>`;
+                  });
+                  html += `</table><button class="btn btn-primary" style="font-size:13px; padding:8px 15px; background:white; color:var(--primary); border:1px solid var(--primary);" onclick="addDefect('systems', '${sysKey}', '${compKey}')">+ Add New Defect</button></div>`;
+              });
+              html += `</div>`;
+          });
+
+          html += `<button class="btn btn-success" style="width:100%; padding:15px; font-size:18px; margin-top:20px;" onclick="saveAdminConfig()">💾 Save All Configurations</button></div>`;
+          document.getElementById('appContent').innerHTML = html;
+      }
+
+      function addDefect(mode, key1, key2) {
+          const name = prompt("Enter the name of the new defect:");
+          if(name) { 
+              if(mode === 'database') database[key1].defects[name] = { w: 0.10, enabled: true, param: "Severity", criteria: "Custom Defect" };
+              if(mode === 'systems') systemsData[key1].components[key2].defects[name] = { w: 0.10, enabled: true, param: "Severity", criteria: "Custom Defect" };
+              renderAdminConfig(); 
+          }
+      }
+      function deleteDefect(mode, key1, key2, def) {
+          if(!confirm(`Delete defect "${def}"?`)) return;
+          if(mode === 'database') delete database[key1].defects[def];
+          if(mode === 'systems') delete systemsData[key1].components[key2].defects[def];
+          renderAdminConfig();
+      }
+      function saveAdminConfig() { 
+          localStorage.setItem('dam_app_config', JSON.stringify({ database: database, systemsData: systemsData })); 
+          alert("Global Settings Updated Successfully! Inspectors will now see these changes."); 
+      }
+
+      // ==========================================
+      // 4. INSPECTOR FIELD SETUP & FETCH
+      // ==========================================
+      async function fetchExistingDams() {
+          const sel = document.getElementById('damSelector');
+          if(sel) sel.innerHTML = `<option value="">Fetching from server...</option>`;
+          try {
+              const token = localStorage.getItem('dam_app_token');
+              const res = await fetch('https://dam-api-1ix3.onrender.com/api/assessments', {
+                  headers: { 'Authorization': `Bearer ${token}` }
+              });
+              const result = await res.json();
+              if (result.status === 'success' && result.data.length > 0) {
+                  window.cachedServerData = result.data;
+                  const names = [...new Set(result.data.map(r => r.damName))];
+                  if(sel) sel.innerHTML = `<option value="">-- Select Existing Dam --</option>` + names.map(n => `<option value="${n}">${n}</option>`).join('');
+              } else {
+                  if(sel) sel.innerHTML = '<option value="">No past data on server</option>';
+              }
+          } catch (e) {
+              if(sel) sel.innerHTML = '<option value="">Cannot connect (Offline Mode)</option>';
+          }
+      }
+
+      function loadDamData(mode) {
+          const name = document.getElementById('damSelector').value;
+          if(!name) return alert("Select a dam first.");
+
+          const data = window.cachedServerData.filter(r => r.damName.toLowerCase() === name.toLowerCase());
+          if(!data || data.length === 0) return alert("No data found.");
+
+          appState.damName = data[0].damName;
+          const segNames = [...new Set(data.filter(r => !systemsData[r.segment] && r.segment).map(r => r.segment))];
+          appState.numSegments = segNames.length > 0 ? segNames.length : 1;
+
+          let lastEnd = 100;
+          const lastSeg = data.slice().reverse().find(r => r.range && r.range.includes('-'));
+          if (lastSeg) lastEnd = parseFloat(lastSeg.range.split('-')[1]);
+          appState.totalLength = lastEnd;
+
+          initSegments(appState.numSegments, appState.totalLength);
+          savedState = {}; fileStore = {};
+
+          // Rebuild Semantic Data Mappings
+          data.forEach(row => {
+              if(systemsData[row.segment]) { 
+                  const comp = row.component || row.location; 
+                  const k = getSysKey(row.segment, comp, row.defect);
+                  savedState[k] = parseInt(row.rank);
+                  if(row.image && row.image.length > 50) fileStore[k] = row.image;
+              } else {
+                  const sIdx = appState.segments.findIndex(s => s.name === row.segment);
+                  if(sIdx > -1) {
+                      appState.segments[sIdx].height = parseFloat(row.height);
+                      if(row.range && row.range.includes('-')) {
+                          const r = row.range.split('-');
+                          appState.segments[sIdx].start = parseFloat(r[0]);
+                          appState.segments[sIdx].end = parseFloat(r[1]);
+                      }
+                      const k = getStructKey(row.segment, row.location, row.defect);
+                      savedState[k] = parseInt(row.rank);
+                      if(row.image && row.image.length > 50) fileStore[k] = row.image;
+                  }
+              }
+          });
+          
+          recalcWeights();
+          if(mode === 'edit') changeStep(1);
+          else renderReportScreen();
+      }
+
+      function autoSaveDraft() {
+          if (!appState.damName || appState.damName === "") return;
+          const draft = { appState, savedState, fileStore }; 
+          localforage.setItem('damAssessment_draft', draft).catch(e => console.error(e));
+      }
+
+      async function checkAndLoadDraft() {
+          try {
+              const draft = await localforage.getItem('damAssessment_draft');
+              if (draft) {
+                  if (confirm("You have an unsaved assessment in progress. Would you like to resume where you left off?")) {
+                      appState = draft.appState; savedState = draft.savedState; fileStore = draft.fileStore || {};
+                      appState.role = 'inspector'; 
+                      localStorage.setItem('dam_app_session', 'inspector'); 
+                      
+                      recalcWeights();
+                      if (appState.currentStep === 0) { renderInspectorSetup(); } 
+                      else changeStep(0); 
+                      return true;
+                  } else { 
+                      await localforage.removeItem('damAssessment_draft'); 
+                  }
+              }
+          } catch(e) { await localforage.removeItem('damAssessment_draft'); }
+          return false;
+      }
+
+      function safe(str) { return str ? str.replace(/</g, "&lt;").replace(/>/g, "&gt;") : ""; }
+      function getNormRank(r) { return {4:1.0, 3:0.67, 2:0.33, 1:0.0}[r] || 0.0; } // Rank 1 returns 0.0 penalty
+      function getVisualHtml(def) { const info = visualInfo[def] || { desc: "Hover for details." }; return `<div class="info-icon">i<div class="tooltip-content"><strong>${def}</strong><div style="margin:5px 0;">${info.desc}</div></div></div>`; }
+      function getSeverityClass(v) { return v==4?'card-critical':v==3?'card-severe':v==2?'card-moderate':'card-minor'; }
+
+      function updateProgress() { document.getElementById('progressBar').style.width = ((appState.currentStep / (appState.numSegments + 4)) * 100) + "%"; }
+      function initSegments(count, length) { const segLen = length / count; appState.segments = []; for(let i=0; i<count; i++) appState.segments.push({ id: i, name: `Segment ${i+1}`, weight: 0, start: parseFloat((i * segLen).toFixed(1)), end: parseFloat(((i + 1) * segLen).toFixed(1)), height: 50 }); recalcWeights(); }
+      function recalcWeights() { let totalH = 0; appState.segments.forEach(s => totalH += parseFloat(s.height) || 0); if(totalH === 0) totalH = 1; appState.segments.forEach(s => s.weight = (parseFloat(s.height) || 0) / totalH); }
+
+      function openPreview(key) {
+         if (!fileStore[key]) return;
+         document.getElementById('modalImg').src = fileStore[key].startsWith('data') ? fileStore[key] : 'data:image/jpeg;base64,' + fileStore[key];
+         document.getElementById('btnChange').style.display = 'block'; 
+         document.getElementById('imgModal').style.display = 'flex';
+         document.getElementById('btnChange').onclick = function() { closePreview(true); document.getElementById('f_' + key).click(); };
+      }
+      function closePreview(force) { if (force === true || event.target.id === 'imgModal') document.getElementById('imgModal').style.display = 'none'; }
+
+      // COMPRESSION ENGINE: IndexedDB Bypass
+      function handleFileSelect(input, key) {
+         if (input.files && input.files[0]) {
+            const file = input.files[0]; const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d');
+                    const MAX = 500; let w = img.width; let h = img.height;
+                    if (w > h && w > MAX) { h *= MAX / w; w = MAX; } else if (h > MAX) { w *= MAX / h; h = MAX; }
+                    canvas.width = w; canvas.height = h; ctx.drawImage(img, 0, 0, w, h);
+                    const compressedBase64 = canvas.toDataURL('image/jpeg', 0.5); // Fast compression
+                    fileStore[key] = compressedBase64; autoSaveDraft(); 
+                    
+                    const btn = input.nextElementSibling;
+                    if(btn) { btn.classList.add('cam-active'); btn.innerHTML = `<img src="${compressedBase64}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`; btn.onclick = function() { openPreview(key); }; input.onclick = function(e) { e.stopPropagation(); }; }
+                }; img.src = e.target.result;
+            }; reader.readAsDataURL(file);
+         }
+      }
+
+      function handleDefectChange(k, v, id) { savedState[k] = parseInt(v); document.getElementById(id).className = "defect-card " + getSeverityClass(v); autoSaveDraft(); }
+      function updateSegmentRange(idx, val) { const v = parseFloat(val); if(isNaN(v)) return; appState.segments[idx].end = v; if(idx < appState.numSegments - 1) appState.segments[idx+1].start = v; }
+      function updateHeight(idx, val) { appState.segments[idx].height = parseFloat(val); recalcWeights(); }
+      function updateSegmentWeight(idx, val) { const w = parseFloat(val)/100; if(!isNaN(w) && w >= 0) { appState.segments[idx].weight = w; autoSaveDraft(); } }
+      function updateWeight(type, key1, key2, newValue) { const w = parseFloat(newValue) / 100; if (isNaN(w) || w < 0) return; if (type === 'system') { if (key2) systemsData[key1].components[key2].weight = w; else systemsData[key1].weight = w; } else if (type === 'struct') database[key1].weight = w; if (appState.currentStep === appState.numSegments + 4) renderReportScreen(); autoSaveDraft(); }
+      
+      function addSegment() { const last = appState.segments[appState.segments.length - 1]; const newStart = last ? last.end : 0; const avgLen = appState.totalLength > 0 ? (appState.totalLength / Math.max(1, appState.numSegments)) : 100; appState.segments.push({ id: appState.segments.length, name: `Segment ${appState.segments.length + 1}`, weight: 0, start: parseFloat(newStart.toFixed(1)), end: parseFloat((newStart + avgLen).toFixed(1)), height: 50 }); appState.numSegments++; recalcWeights(); renderSegmentScreen(appState.segments.length - 1); alert("Segment Added!"); }
+      function deleteSegment(index) { if(appState.segments.length <= 1) return alert("Cannot delete the only segment."); if(!confirm("Are you sure?")) return; appState.segments.splice(index, 1); appState.numSegments--; for(let i=0; i < appState.segments.length; i++) { appState.segments[i].id = i; appState.segments[i].name = `Segment ${i+1}`; appState.segments[i].start = i > 0 ? appState.segments[i-1].end : 0; } recalcWeights(); renderSegmentScreen(Math.max(0, index - 1)); }
+
+      function changeStep(dir) {
+        const next = appState.currentStep + dir;
+        if(next < 1) { renderInspectorSetup(); return; } 
+        appState.currentStep = next; updateProgress(); autoSaveDraft(); 
+        if(next <= appState.numSegments) renderSegmentScreen(next - 1);
+        else if (next === appState.numSegments + 1) renderSystemScreen("Spillway");
+        else if (next === appState.numSegments + 2) renderSystemScreen("Gates");
+        else if (next === appState.numSegments + 3) renderSystemScreen("Gallery");
+        else renderReportScreen();
+      }
+      
+      function jumpToStep(stepIndex) {
+          appState.currentStep = stepIndex; updateProgress();
+          if(stepIndex <= appState.numSegments) renderSegmentScreen(stepIndex - 1);
+          else if (stepIndex === appState.numSegments + 1) renderSystemScreen("Spillway");
+          else if (stepIndex === appState.numSegments + 2) renderSystemScreen("Gates");
+          else if (stepIndex === appState.numSegments + 3) renderSystemScreen("Gallery");
+      }
+
+      // ==========================================
+      // 5. INSPECTOR UI SCREENS
+      // ==========================================
+      async function renderInspectorSetup() {
+        appState.currentStep = 0; updateProgress();
+        const offlineData = await localforage.getItem('damAssessments') || [];
+        let pendingHtml = '<p style="color: var(--success); font-weight: bold; margin-bottom: 15px;">All clear! No pending uploads.</p>';
+        if (offlineData.length > 0) {
+            pendingHtml = `<div style="text-align: left; background: #fff3cd; padding: 15px; border-radius: 6px; border: 1px solid #ffeeba; color: #856404; font-size: 14px; margin-bottom: 20px;">
+                <strong style="font-size:16px;">⚠️ Pending Uploads (${offlineData.length}):</strong>
+                <ul style="margin: 8px 0 0 0; padding-left: 20px;">${offlineData.map(a => `<li><strong>${a.damName}</strong></li>`).join('')}</ul>
+            </div>`;
+        }
+
+        document.getElementById('appContent').innerHTML = `
+          <div style="max-width: 700px; margin: 0 auto;">
+            <div class="header-bar"><h2>📋 Field Inspector Workspace</h2><button class="btn btn-danger" onclick="logout()">Logout</button></div>
+            
+            <div class="setup-card"><div style="font-size:18px; font-weight:bold; color:var(--primary); margin-bottom:15px;">Load Existing Assessment</div>
+               <select id="damSelector" style="width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 16px; margin-bottom:15px;"><option value="">Connecting to server...</option></select>
+               <div style="display:flex; gap:15px;"><button class="btn btn-warning" style="width:100%" onclick="loadDamData('edit')">Load & Edit</button></div>
+            </div>
+            
+            <div style="text-align:center; color:#95a5a6; margin:30px 0; font-weight:bold; font-size:18px;">— OR —</div>
+            
+            <div class="setup-card"><div style="font-size:18px; font-weight:bold; color:var(--primary); margin-bottom:15px;">Start New Assessment</div>
+               <div class="setup-group"><label>Dam Name</label><input type="text" id="in_name" placeholder="e.g. Hirakud Dam"></div>
+               <div class="setup-group"><label>Total Length (m)</label><input type="number" id="in_length" placeholder="500"></div>
+               <div class="setup-group"><label>Number of Segments</label><input type="number" id="in_count" value="5" min="1"></div>
+               <button class="btn btn-primary" style="width:100%" onclick="processSetup()">Start Assessment</button>
+            </div>
+            
+            <div class="setup-card" style="text-align: center; margin-top:30px; border-color: #f1c40f;">
+               <div style="font-size:18px; font-weight:bold; color: #e67e22; margin-bottom:15px;">Server Synchronization</div>
+               <p style="color: #7f8c8d; margin-bottom: 20px;">Upload offline saved assessments to the main database when connected to Wi-Fi.</p>
+               ${pendingHtml}
+               <button class="btn btn-warning" id="syncBtn" style="width: 100%; padding: 14px; font-size: 18px;" onclick="syncToServer()">Sync Offline Data to Server</button>
+            </div>
+          </div>`;
+          
+        fetchExistingDams(); 
+      }
+
+      function processSetup() { const n=document.getElementById('in_name').value, l=parseFloat(document.getElementById('in_length').value), c=parseInt(document.getElementById('in_count').value); if(!n||!l||c<1) return alert("Check inputs."); appState.damName=n; appState.totalLength=l; appState.numSegments=c; initSegments(c, l); changeStep(1); }
+
+      function generateDefectHtml(k, def, info, val, cardId) {
+          const activeVal = val !== undefined ? val : 1;
+          savedState[k] = activeVal;
+
+          const fileData = fileStore[k]; 
+          let camContent = '📷', camClass = 'cam-btn', clickAction = `document.getElementById('f_${k}').click()`;
+          if (fileData) {
+              camClass += ' cam-active';
+              const imgSrc = fileData.startsWith('data:image') ? fileData : 'data:image/jpeg;base64,' + fileData;
+              camContent = `<img src="${imgSrc}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`;
+              clickAction = `openPreview('${k}')`;
+          }
+
+          return `<div id="${cardId}" class="defect-card ${getSeverityClass(activeVal)}">
+            <div class="card-header">
+                <div style="display:flex; align-items:center;">
+                    <label style="font-weight:700; font-size:15px; margin:0; color:var(--secondary);">${def}</label>
+                    ${getVisualHtml(def)}
+                </div>
+              <div>
+                <input type="file" id="f_${k}" style="display:none" accept="image/*" onchange="handleFileSelect(this,'${k}')">
+                <div class="${camClass}" onclick="${clickAction}">${camContent}</div>
+              </div>
+            </div>
+            <div style="font-size:12px; color:#e67e22; font-weight:700; text-transform:uppercase;">${info.param || "Severity"}</div>
+            <div style="font-size:12px; color:#555; background:#fff; padding:8px; border:1px solid #eee; border-radius:4px; white-space:pre-wrap;">${safe(info.criteria)}</div>
+            <select style="width:100%; padding:10px; border:1px solid #ced4da; border-radius:4px; font-size:15px; background:white; font-weight:bold; outline:none;" onchange="handleDefectChange('${k}', this.value, '${cardId}')">
+              <option value="1" ${activeVal==1?'selected':''}>1 - Minor</option>
+              <option value="2" ${activeVal==2?'selected':''}>2 - Moderate</option>
+              <option value="3" ${activeVal==3?'selected':''}>3 - Severe</option>
+              <option value="4" ${activeVal==4?'selected':''}>4 - Critical</option>
+            </select></div>`;
+      }
+
+      function renderSegmentScreen(index) {
+        const seg = appState.segments[index] || {name: 'Segment', weight: 0, start: 0, end: 0, height: 50};
+        let html = `
+          <div class="header-bar">
+              <div style="display:flex; align-items:center; gap:15px;">
+                 <button class="nav-arrow" onclick="changeStep(-1)">&#8592;</button>
+                 <button class="nav-arrow" onclick="changeStep(1)">&#8594;</button>
+              </div>
+              <div style="text-align:center;">
+                  <div style="font-size:24px; font-weight:bold; color:var(--secondary);">${seg.name}</div>
+                  <div style="font-size:14px; color:#7f8c8d; font-weight:bold;">Seg Weight: <input type="number" style="width:60px; padding:4px; text-align:center; border-radius:4px; border:1px solid #ccc;" value="${(seg.weight*100).toFixed(1)}" onchange="updateSegmentWeight(${index}, this.value)"> %</div>
+              </div>
+              <button class="btn btn-danger" onclick="logout()">Logout</button>
+          </div>
+          
+          <div style="background:#f8f9fa; padding:20px; border-radius:8px; margin-bottom:30px; display:flex; flex-wrap:wrap; gap:20px; border:1px solid #e9ecef; align-items:flex-end;">
+              <div style="flex:1; min-width:180px;"><label style="display:block; font-size:12px; font-weight:700; color:#7f8c8d; margin-bottom:8px;">Start (m)</label><div style="padding:10px 12px; font-weight:700; color:var(--primary); background:#e8f4f8; border-radius:6px; border:1px solid #bee5eb;">${seg.start}</div></div>
+              <div style="flex:1; min-width:180px;"><label style="display:block; font-size:12px; font-weight:700; color:#7f8c8d; margin-bottom:8px;">End (m)</label><input type="number" style="width:100%; padding:10px 12px; border:1px solid #ced4da; border-radius:6px;" value="${seg.end}" onchange="updateSegmentRange(${index},this.value)"></div>
+              <div style="flex:1; min-width:180px;"><label style="display:block; font-size:12px; font-weight:700; color:#7f8c8d; margin-bottom:8px;">Height (m)</label><input type="number" style="width:100%; padding:10px 12px; border:1px solid #ced4da; border-radius:6px;" value="${seg.height}" onchange="updateHeight(${index},this.value)"></div>
+              <button class="btn btn-danger" onclick="deleteSegment(${index})">🗑️ Delete</button>
+          </div><form id="segForm">`;
+        
+        Object.keys(database).forEach((loc, lIdx) => {
+           const hasEnabledDefects = Object.values(database[loc].defects).some(d => d.enabled);
+           if (hasEnabledDefects) {
+               const h = parseFloat(seg.height) || 0; const vText = loc.includes("FOUNDATION") ? `0 - ${(h*0.2).toFixed(1)}m` : (loc.includes("FACE") ? `${(h*0.2).toFixed(1)} - ${(h*0.9).toFixed(1)}m` : `${(h*0.9).toFixed(1)} - ${h.toFixed(1)}m`);
+               html += `<div style="margin-bottom:30px;"><div style="background:var(--secondary); color:white; padding:10px 15px; font-weight:700; border-radius:6px; margin-bottom:15px; display:flex; justify-content:space-between; align-items:center;">
+                   <span>📍 ${loc}</span>
+                   <span style="font-size:14px; font-weight:normal;">${vText} &nbsp;|&nbsp; Wt: <input type="number" style="width:50px; padding:4px; text-align:center; border-radius:4px; border:none; outline:none;" value="${(database[loc].weight * 100).toFixed(1)}" onchange="updateWeight('struct', '${loc}', null, this.value)"> %</span>
+               </div><div class="defects-grid">`;
+               Object.keys(database[loc].defects).forEach((def, dIdx) => { 
+                   if(database[loc].defects[def].enabled) {
+                       const k = getStructKey(seg.name, loc, def); html += generateDefectHtml(k, def, database[loc].defects[def], savedState[k], `card_${lIdx}_${dIdx}`); 
+                   }
+               });
+               html += `</div></div>`;
+           }
+        });
+        html += `</form><div style="display:flex; gap:15px; margin-top:30px; border-top:2px solid #f8f9fa; padding-top:20px;"><button class="btn btn-warning" style="flex:1" onclick="changeStep(-1)">Back</button><button class="btn btn-primary" style="flex:1" onclick="addSegment()">+ Add Segment</button><button class="btn btn-success" style="flex:2" onclick="changeStep(1)">Next</button></div>`;
+        document.getElementById('appContent').innerHTML = html;
+      }
+
+      function renderSystemScreen(sysKey) {
+        const sys = systemsData[sysKey];
+        if(!sys) return changeStep(1); 
+        
+        let html = `
+          <div class="header-bar">
+             <div style="display:flex; align-items:center; gap:15px;">
+                 <button class="nav-arrow" onclick="changeStep(-1)">&#8592;</button>
+                 <button class="nav-arrow" onclick="changeStep(1)">&#8594;</button>
+             </div>
+             <div style="text-align:center;">
+                 <div style="font-size:24px; font-weight:bold; color:var(--secondary);">${sys.title || sysKey} System</div>
+                 <div style="font-size:14px; color:#7f8c8d; font-weight:bold;">System Weight: <input type="number" style="width:60px; padding:4px; text-align:center; border:1px solid #ccc; border-radius:4px;" value="${(sys.weight * 100).toFixed(1)}" onchange="updateWeight('system', '${sysKey}', null, this.value)"> %</div>
+             </div>
+             <button class="btn btn-danger" onclick="logout()">Logout</button>
+          </div><form>`;
+          
+        Object.keys(sys.components).forEach(compKey => {
+           const comp = sys.components[compKey];
+           const hasEnabledDefects = Object.values(comp.defects).some(d => d.enabled);
+           if (hasEnabledDefects) {
+               html += `<div style="margin-bottom:30px;"><div style="background:var(--secondary); color:white; padding:10px 15px; font-weight:700; border-radius:6px; margin-bottom:15px; display:flex; justify-content:space-between; align-items:center;">
+                   <span>📍 ${compKey}</span>
+                   <span style="font-size:14px; font-weight:normal;">Comp Wt: <input type="number" style="width:50px; padding:4px; text-align:center; border-radius:4px; border:none; outline:none;" value="${(comp.weight*100).toFixed(1)}" onchange="updateWeight('system', '${sysKey}', '${compKey}', this.value)"> %</span>
+               </div><div class="defects-grid">`;
+               Object.keys(comp.defects).forEach(defKey => { 
+                   if(comp.defects[defKey].enabled) {
+                       const k = getSysKey(sysKey, compKey, defKey); html += generateDefectHtml(k, defKey, comp.defects[defKey], savedState[k], `card_${k}`); 
+                   }
+               });
+               html += `</div></div>`;
+           }
+        });
+        html += `</form><div style="display:flex; gap:15px; margin-top:30px; border-top:2px solid #f8f9fa; padding-top:20px;"><button class="btn btn-warning" style="flex:1" onclick="changeStep(-1)">Back</button><button class="btn btn-success" style="flex:2" onclick="changeStep(1)">Next</button></div>`;
+        document.getElementById('appContent').innerHTML = html;
+      }
+
+      // ==========================================
+      // 6. REPORT & EXPORT LOGIC
+      // ==========================================
+      function renderReportScreen() {
+        appState.currentStep = appState.numSegments + 4; updateProgress();
+        let dsi_struct = 0, dsi_spillway = 0, dsi_gates = 0, dsi_gallery = 0, criticals = [];
+        
+        let accordionHtml = `<h3 style="margin-top:40px; color:var(--secondary); border-bottom: 2px solid #eee; padding-bottom:10px;">📋 Detailed Inspection Log</h3>`;
+        
+        // 1. Process Structural for Deep Nested Accordions
+        let structHtml = '';
+        appState.segments.forEach((seg, sIdx) => { 
+            let segHtml = '';
+            Object.keys(database).forEach((loc, lIdx) => { 
+                let locHtml = '';
+                Object.keys(database[loc].defects).forEach((def, dIdx) => { 
+                    if(database[loc].defects[def].enabled) {
+                        const k = getStructKey(seg.name, loc, def); 
+                        const rank = savedState[k] || 1; 
+                        if(rank >= 3) criticals.push({ where: `${seg.name} • ${loc}`, what: def, sev: rank===4?"Critical":"Severe" }); 
+                        if(rank > 0) dsi_struct += (seg.weight * database[loc].weight * database[loc].defects[def].w * getNormRank(rank)); 
+                        
+                        const img = fileStore[k] ? `<img src="${fileStore[k].startsWith('data') ? fileStore[k] : 'data:image/jpeg;base64,'+fileStore[k]}" class="log-img" onclick="openPreviewFromSrc(this.src)">` : '';
+                        locHtml += `<div class="log-item">
+                            <div><strong>${def}</strong> <br><span class="severity-tag rank-${rank}" style="display:inline-block; margin-top:5px;">Rank ${rank}</span></div>
+                            <div style="display:flex; gap:10px; align-items:center;">
+                                ${img}
+                                <button class="btn btn-warning" style="padding:6px 12px; font-size:12px;" onclick="jumpToStep(${sIdx + 1})">✏️ Edit</button>
+                            </div>
+                        </div>`;
+                    }
+                }); 
+                if(locHtml) segHtml += `<details><summary>📍 ${loc}</summary>${locHtml}</details>`;
+            }); 
+            if(segHtml) structHtml += `<details><summary>🏢 ${seg.name}</summary>${segHtml}</details>`;
+        });
+        if(structHtml) accordionHtml += `<details><summary style="font-size:18px;">🏗️ Structural Assessments</summary>${structHtml}</details>`;
+
+        // 2. Process Systems for Deep Nested Accordions
+        let sysOverallHtml = '';
+        Object.keys(systemsData).forEach((sysKey, sIndex) => { 
+            let sys_dsi = 0; 
+            let sysHtml = '';
+            Object.keys(systemsData[sysKey].components).forEach(compKey => { 
+                const comp = systemsData[sysKey].components[compKey]; 
+                let compHtml = '';
+                Object.keys(comp.defects).forEach(defKey => { 
+                    if(comp.defects[defKey].enabled) {
+                        const k = getSysKey(sysKey, compKey, defKey); 
+                        const rank = savedState[k] || 1; 
+                        if(rank >= 3) criticals.push({ where: `${sysKey} • ${compKey}`, what: defKey, sev: rank===4?"Critical":"Severe" }); 
+                        if(rank > 0) sys_dsi += (comp.weight * comp.defects[defKey].w * getNormRank(rank)); 
+                        
+                        const img = fileStore[k] ? `<img src="${fileStore[k].startsWith('data') ? fileStore[k] : 'data:image/jpeg;base64,'+fileStore[k]}" class="log-img" onclick="openPreviewFromSrc(this.src)">` : '';
+                        compHtml += `<div class="log-item">
+                            <div><strong>${defKey}</strong> <br><span class="severity-tag rank-${rank}" style="display:inline-block; margin-top:5px;">Rank ${rank}</span></div>
+                            <div style="display:flex; gap:10px; align-items:center;">
+                                ${img}
+                                <button class="btn btn-warning" style="padding:6px 12px; font-size:12px;" onclick="jumpToStep(${appState.numSegments + sIndex + 1})">✏️ Edit</button>
+                            </div>
+                        </div>`;
+                    }
+                }); 
+                if(compHtml) sysHtml += `<details><summary>📍 ${compKey}</summary>${compHtml}</details>`;
+            }); 
+            if (sysKey === "Spillway") dsi_spillway = sys_dsi; 
+            if (sysKey === "Gates") dsi_gates = sys_dsi; 
+            if (sysKey === "Gallery") dsi_gallery = sys_dsi; 
+            if(sysHtml) sysOverallHtml += `<details><summary>⚙️ ${sysKey} System</summary>${sysHtml}</details>`;
+        });
+        if(sysOverallHtml) accordionHtml += `<details><summary style="font-size:18px;">🛠️ Non-Structural Systems</summary>${sysOverallHtml}</details>`;
+
+        const w_spillway = systemsData['Spillway'] ? systemsData['Spillway'].weight : 0;
+        const w_gates = systemsData['Gates'] ? systemsData['Gates'].weight : 0;
+        const w_gallery = systemsData['Gallery'] ? systemsData['Gallery'].weight : 0;
+        const w_sys = w_spillway + w_gates + w_gallery;
+        const w_struct = Math.max(0, 1 - w_sys);
+
+        const dsi_final = (w_struct * dsi_struct) + (w_spillway * dsi_spillway) + (w_gates * dsi_gates) + (w_gallery * dsi_gallery);
+        const dhi = Math.max(0.4, 1 - dsi_final);
+        
+        let verdict="Critical", color="#d9534f"; if(dhi>=0.8){verdict="Good";color="#5cb85c";} else if(dhi>=0.7){verdict="Fair";color="#f0ad4e";} else if(dhi>=0.6){verdict="Poor";color="#e67e22";} else if(dhi>=0.4){verdict="Very Poor";color="#d35400";}
+
+        document.getElementById('appContent').innerHTML = `
+          <div class="header-bar"><h2>Assessment Report: ${appState.damName}</h2><button class="btn btn-danger" onclick="logout()">Logout</button></div>
+          
+          <div class="report-flex">
+             <div class="verdict-box" style="background:${color}">
+                 <div style="font-weight:bold; font-size:16px;">Final Dam Health Index</div>
+                 <div style="font-size:64px; font-weight:800; margin:10px 0;">${dhi.toFixed(4)}</div>
+                 <div style="font-size:24px; font-weight:bold;">${verdict}</div>
+             </div>
+             <div style="flex:1.5; min-width:320px; background:white; border-radius:10px; overflow:hidden; border:1px solid #eee; box-shadow:0 4px 12px rgba(0,0,0,0.05);">
+                <table style="width:100%; border-collapse:collapse; font-size:14px;">
+                    <tr><th style="background:var(--secondary); color:white; padding:12px 15px; text-align:left;">DHI Range</th><th style="background:var(--secondary); color:white; padding:12px 15px; text-align:left;">Condition</th></tr>
+                    <tr><td style="padding:10px 15px; border-bottom:1px solid #f0f0f0; border-left:5px solid var(--success); background:#f0fff4;">0.80 – 1.00</td><td style="padding:10px 15px; border-bottom:1px solid #f0f0f0;">Good</td></tr>
+                    <tr><td style="padding:10px 15px; border-bottom:1px solid #f0f0f0; border-left:5px solid var(--warning); background:#fffff5;">0.70 – 0.80</td><td style="padding:10px 15px; border-bottom:1px solid #f0f0f0;">Fair</td></tr>
+                    <tr><td style="padding:10px 15px; border-bottom:1px solid #f0f0f0; border-left:5px solid #e67e22; background:#fffcf5;">0.60 – 0.70</td><td style="padding:10px 15px; border-bottom:1px solid #f0f0f0;">Poor</td></tr>
+                    <tr><td style="padding:10px 15px; border-bottom:1px solid #f0f0f0; border-left:5px solid #d35400; background:#fff8f0;">0.40 – 0.60</td><td style="padding:10px 15px; border-bottom:1px solid #f0f0f0;">Very Poor</td></tr>
+                    <tr><td style="padding:10px 15px; border-bottom:1px solid #f0f0f0; border-left:5px solid var(--danger); background:#fff5f5;">&lt; 0.40</td><td style="padding:10px 15px; border-bottom:1px solid #f0f0f0;">Critical</td></tr>
+                </table>
+             </div>
+          </div>
+
+          <div class="stat-grid">
+             <div class="stat-card"><div style="font-size:24px; font-weight:bold;">${dsi_struct.toFixed(4)}</div><div style="font-size:12px; color:#7f8c8d; font-weight:bold; text-transform:uppercase;">Structural (${(w_struct*100).toFixed(0)}%)</div></div>
+             <div class="stat-card"><div style="font-size:24px; font-weight:bold;">${dsi_spillway.toFixed(4)}</div><div style="font-size:12px; color:#7f8c8d; font-weight:bold; text-transform:uppercase;">Spillway (${(w_spillway*100).toFixed(0)}%)</div></div>
+             <div class="stat-card"><div style="font-size:24px; font-weight:bold;">${dsi_gates.toFixed(4)}</div><div style="font-size:12px; color:#7f8c8d; font-weight:bold; text-transform:uppercase;">Gates (${(w_gates*100).toFixed(0)}%)</div></div>
+             <div class="stat-card"><div style="font-size:24px; font-weight:bold;">${dsi_gallery.toFixed(4)}</div><div style="font-size:12px; color:#7f8c8d; font-weight:bold; text-transform:uppercase;">Gallery (${(w_gallery*100).toFixed(0)}%)</div></div>
+          </div>
+
+          <div style="background: #fdfdfd; padding: 20px; border-radius: 8px; margin-top: 25px; border: 1px solid #ddd;">
+             <h4 style="margin: 0 0 15px 0; color: var(--secondary);">Adjust Major System Weights</h4>
+             <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                <div style="flex: 1;"><label style="font-size: 13px; font-weight: bold; color: #7f8c8d;">Spillway %</label><br><input type="number" style="width: 100%; padding: 10px; border:1px solid #ccc; border-radius:4px;" value="${(w_spillway * 100).toFixed(1)}" onchange="updateWeight('system', 'Spillway', null, this.value)"></div>
+                <div style="flex: 1;"><label style="font-size: 13px; font-weight: bold; color: #7f8c8d;">Gates %</label><br><input type="number" style="width: 100%; padding: 10px; border:1px solid #ccc; border-radius:4px;" value="${(w_gates * 100).toFixed(1)}" onchange="updateWeight('system', 'Gates', null, this.value)"></div>
+                <div style="flex: 1;"><label style="font-size: 13px; font-weight: bold; color: #7f8c8d;">Gallery %</label><br><input type="number" style="width: 100%; padding: 10px; border:1px solid #ccc; border-radius:4px;" value="${(w_gallery * 100).toFixed(1)}" onchange="updateWeight('system', 'Gallery', null, this.value)"></div>
+             </div>
+          </div>
+          
+          ${criticals.length > 0 ? `<div style="margin-top:25px; border:1px solid #fadbd8; border-radius:8px; overflow:hidden; background:#fff;"><div style="background:var(--danger); color:white; padding:10px 15px; font-weight:700; font-size:14px;">⚠️ Critical & Severe Defects</div>${criticals.map(c => `<div style="padding:12px 15px; border-bottom:1px solid #f0f0f0; display:flex; justify-content:space-between; align-items:center; font-size:13px;"><span><strong>${c.what}</strong> <span style="color:#7f8c8d; font-size:12px;">(${c.where})</span></span><span class="severity-tag rank-${c.sev==='Critical'?'4':'3'}">${c.sev}</span></div>`).join('')}</div>` : '<div style="text-align:center; padding:20px; color:var(--success); font-weight:bold; background:#f0fff4; border:1px solid #d6e9c6; border-radius:8px; margin-top:20px;">No severe defects logged.</div>'}
+          
+          ${accordionHtml}
+
+          <div style="display:flex; gap:15px; margin-top:30px; border-top:2px solid #f8f9fa; padding-top:20px; flex-wrap:wrap;">
+              <button class="btn btn-success" style="flex:2; font-size:18px; padding:15px;" onclick="saveOfflineAndExport()">💾 Save Offline & Export CSV</button>
+              <button class="btn btn-warning" style="flex:1" onclick="changeStep(-1)">Edit Inputs</button>
+          </div>
+        `;
+      }
+
+      async function saveOfflineAndExport() {
+          let rows = [];
+          appState.segments.forEach((seg, sIdx) => { Object.keys(database).forEach((loc, lIdx) => { Object.keys(database[loc].defects).forEach((def, dIdx) => { if(database[loc].defects[def].enabled){ const k = getStructKey(seg.name, loc, def); const rank = savedState[k] || 1; if(rank > 0) { const norm = getNormRank(rank); const dsi = database[loc].defects[def].w * norm; rows.push([appState.damName, seg.name, seg.weight.toFixed(4), `${seg.start}-${seg.end}`, seg.height, loc, "", database[loc].weight, def, rank, norm, database[loc].defects[def].w, dsi, seg.weight * database[loc].weight * dsi, fileStore[k] || ""]); } } }); }); });
+          Object.keys(systemsData).forEach(sysKey => { Object.keys(systemsData[sysKey].components).forEach(compKey => { const comp = systemsData[sysKey].components[compKey]; Object.keys(comp.defects).forEach(defKey => { if(comp.defects[defKey].enabled) { const k = getSysKey(sysKey, compKey, defKey); const rank = savedState[k] || 1; if(rank > 0) { const norm = getNormRank(rank); const dsi = comp.defects[defKey].w * norm; rows.push([appState.damName, sysKey, systemsData[sysKey].weight.toFixed(4), "", "", compKey, "", comp.weight, defKey, rank, norm, comp.defects[defKey].w, dsi, comp.weight * dsi, fileStore[k] || ""]); } } }); }); });
+
+          let offlineStorage = await localforage.getItem('damAssessments') || [];
+          offlineStorage.push({ id: new Date().getTime(), damName: appState.damName, data: rows });
+          try { await localforage.setItem('damAssessments', offlineStorage); } catch (e) { return alert("Error: Browser storage is full! Please remove a photo and try again."); }
+          
+          downloadCSV(rows); 
+          await localforage.removeItem('damAssessment_draft'); 
+          alert("Successfully Saved! CSV downloaded."); 
+          
+          appState = { role: appState.role, currentStep: 0, damName: "", totalLength: 0, numSegments: 0, segments: [] };
+          savedState = {}; fileStore = {};
+          renderInspectorSetup(); 
+      }
+
+      function downloadCSV(rows) {
+          const headers = ["Dam Name", "Segment/System", "Seg Weight", "Range", "Height", "Location", "Component", "Loc Weight", "Defect", "Severity Rank", "Norm Rank", "Defect Weight", "DSI", "Weighted DSI", "Image (Base64)"];
+          const blob = new Blob([headers.join(",") + "\n" + rows.map(r => r.map(item => `"${(item ? item.toString() : "").replace(/"/g, '""')}"`).join(",")).join("\n")], { type: 'text/csv;charset=utf-8;' });
+          const link = document.createElement("a"); link.setAttribute("href", URL.createObjectURL(blob)); link.setAttribute("download", `${appState.damName}_Offline_Report.csv`); document.body.appendChild(link); link.click(); document.body.removeChild(link);
+      }
+
+      async function syncToServer() {
+          const btn = document.getElementById('syncBtn'); 
+          const offlineData = await localforage.getItem('damAssessments') || [];
+          if (offlineData.length === 0) return alert("No offline data to sync!");
+
+          if(btn) { btn.innerText = "Connecting to Server (May take 50s)..."; btn.disabled = true; }
+          let allRows = []; offlineData.forEach(a => { allRows = allRows.concat(a.data); });
+
+          const token = localStorage.getItem('dam_app_token');
+
+          try {
+              const response = await fetch('https://dam-api-1ix3.onrender.com/api/sync', { 
+                  method: 'POST', 
+                  headers: { 
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${token}` 
+                  }, 
+                  body: JSON.stringify({ assessments: allRows }) 
+              });
+              if (response.ok) { 
+                  alert("Successfully synced to Cloud Database!"); 
+                  await localforage.removeItem('damAssessments'); 
+                  renderInspectorSetup(); 
+              } else {
+                  const err = await response.text();
+                  alert("Sync failed. Server responded with: " + err);
+              }
+          } catch (error) { 
+              alert("Server unreachable. Please check internet connection."); 
+          }
+          if(btn) { btn.innerText = "Sync Offline Data to Server"; btn.disabled = false; }
+      }
+    </script>
+</body>
+</html>
