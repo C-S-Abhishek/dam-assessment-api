@@ -141,86 +141,31 @@
                   </div>`;
           }
       };
-        // ==========================================
-      // 1. MASTER FACTORY DEFAULTS (Full Catalog)
+
       // ==========================================
-      
+      // 1. MASTER FACTORY DEFAULTS
+      // ==========================================
       const visualInfo = {
-        "Cracks": { 
-            desc: "Linear openings on masonry surface.",
-            img: "examples/Crack.png" 
-        },
-        "Loosening of Blocks": { 
-            desc: "Blocks show movement/gaps.",
-            img: "examples/Loosening of Blocks.png" 
-        },
-        "Mortar Deterioration": { 
-            desc: "Joints recessed or washed out.", 
-            img: "examples/Mortar Deterioration.png" 
-        },
-        "Spalling": { 
-            desc: "Surface flakes/fragments detach.", 
-            img: "examples/Spalling.png" 
-        },
-        "Leakage": { 
-            desc: "Visible water outflow.", 
-            img: "examples/Leakage.png" 
-        },
-        "Seepage/Sweating": { 
-            desc: "Wet patches or discoloration.", 
-            img: "examples/Seepage Sweating.png" 
-        },
-        "Seepage": { 
-            desc: "Wet patches or discoloration.", 
-            img: "examples/Seepage Sweating.png" 
-        },
-        "Erosion": { 
-            desc: "Surface wear, depressions, grooves.", 
-            img: "examples/Erosion.png" 
-        },
-        "Vegetation Growth": { 
-            desc: "Weeds/shrubs in joints.", 
-            img: "examples/Vegetation Growth.png" 
-        },
-        "Efflorescence": { 
-            desc: "White salt deposits.", 
-            img: "examples/Effloroscence.png" // Matched to your exact spelling
-        },
-        "Vertical Misalignment": { 
-            desc: "Gate tilted or uneven.", 
-            img: "examples/Vertical Misalignment.png" 
-        },
-        "Bending of Gate": { 
-            desc: "Gate leaf curved.", 
-            img: "examples/Bending of Gate.png" 
-        },
-        "Slide Track Condition": { 
-            desc: "Tracks worn/obstructed.", 
-            img: "examples/Slide Track Condition.png" 
-        },
-        "Corrosion": { 
-            desc: "Rust, pitting, metal loss.", 
-            img: "examples/Corrosion.png" 
-        },
-        "Last Operation History": { 
-            desc: "Stiffness or noise.", 
-            img: "examples/Last Operation History.png" 
-        },
-        "Age of Gate": { 
-            desc: "Old components.", 
-            img: "examples/Age of Gate.png" 
-        },
-        "Drain Blockage": { 
-            desc: "Obstruction in drainage systems.", 
-            img: "" // (No image found in your screenshot for this one)
-        },
-        "Water Ponding": { 
-            desc: "Standing water on crest.", 
-            img: "examples/WATER PONDING IN CREST.png" 
-        }
+        "Cracks": { desc: "Linear openings on masonry surface.", img: "examples/Crack.png" },
+        "Loosening of Blocks": { desc: "Blocks show movement/gaps.", img: "examples/Loosening of Blocks.png" },
+        "Mortar Deterioration": { desc: "Joints recessed or washed out.", img: "examples/Mortar Deterioration.png" },
+        "Spalling": { desc: "Surface flakes/fragments detach.", img: "examples/Spalling.png" },
+        "Leakage": { desc: "Visible water outflow.", img: "examples/Leakage.png" },
+        "Seepage/Sweating": { desc: "Wet patches or discoloration.", img: "examples/Seepage Sweating.png" },
+        "Seepage": { desc: "Wet patches or discoloration.", img: "examples/Seepage Sweating.png" },
+        "Erosion": { desc: "Surface wear, depressions, grooves.", img: "examples/Erosion.png" },
+        "Vegetation Growth": { desc: "Weeds/shrubs in joints.", img: "examples/Vegetation Growth.png" },
+        "Efflorescence": { desc: "White salt deposits.", img: "examples/Effloroscence.png" },
+        "Vertical Misalignment": { desc: "Gate tilted or uneven.", img: "examples/Vertical Misalignment.png" },
+        "Bending of Gate": { desc: "Gate leaf curved.", img: "examples/Bending of Gate.png" },
+        "Slide Track Condition": { desc: "Tracks worn/obstructed.", img: "examples/Slide Track Condition.png" },
+        "Corrosion": { desc: "Rust, pitting, metal loss.", img: "examples/Corrosion.png" },
+        "Last Operation History": { desc: "Stiffness or noise.", img: "examples/Last Operation History.png" },
+        "Age of Gate": { desc: "Old components.", img: "examples/Age of Gate.png" },
+        "Drain Blockage": { desc: "Obstruction in drainage systems.", img: "" },
+        "Water Ponding": { desc: "Standing water on crest.", img: "examples/WATER PONDING IN CREST.png" }
       };
 
-     // FULL, UNCUT CRITERIA RESTORED
       const defaultDatabase = {
         "DOWNSTREAM FOUNDATION": { weight: 0.39, defects: {
             "Cracks": { w: 0.290, enabled: true, param: "Crack Width", criteria: "Critical: >20mm\nSevere: 10-20mm\nModerate: 5-10mm\nMinor: <5mm" },
@@ -461,14 +406,30 @@
                   window.adminDashData = data.data; 
                   
                   const damScores = {};
-                  data.data.forEach(r => {
-                      if(!damScores[r.damName]) damScores[r.damName] = 0;
-                      damScores[r.damName] += parseFloat(r.weightedDsi || 0);
+                  const labelsSet = new Set(data.data.map(r => r.damName));
+                  const labels = Array.from(labelsSet);
+                  
+                  // DHI CALCULATION FIX: Average the duplicate submissions
+                  labels.forEach(dam => {
+                      const damRows = data.data.filter(r => r.damName === dam);
+                      const uniqueDefects = {};
+                      damRows.forEach(r => {
+                          const key = r.segment + '_' + (r.location || r.component) + '_' + r.defect;
+                          if(!uniqueDefects[key]) uniqueDefects[key] = [];
+                          uniqueDefects[key].push(parseFloat(r.weightedDsi || 0));
+                      });
+                      let totalPenalty = 0;
+                      Object.values(uniqueDefects).forEach(arr => {
+                          const avg = arr.reduce((a,b)=>a+b, 0) / arr.length;
+                          totalPenalty += avg;
+                      });
+                      damScores[dam] = totalPenalty;
                   });
-                  const labels = Object.keys(damScores);
+                  
                   const values = labels.map(d => Math.max(0.4, 1 - damScores[d]));
                   
-                  new Chart(document.getElementById('dhiChart'), {
+                  if (window.dhiChartInstance) { window.dhiChartInstance.destroy(); }
+                  window.dhiChartInstance = new Chart(document.getElementById('dhiChart'), {
                       type: 'bar',
                       data: { labels: labels, datasets: [{ label: 'Dam Health Index (DHI)', data: values, backgroundColor: '#3b71ca' }] },
                       options: { scales: { y: { min: 0.4, max: 1.0 } } }
@@ -732,7 +693,6 @@
       function safe(str) { return str ? str.replace(/</g, "&lt;").replace(/>/g, "&gt;") : ""; }
       function getNormRank(r) { return {4:1.0, 3:0.67, 2:0.33, 1:0.0}[r] || 0.0; } 
       
-      // --- WIDE TOOLTIP RENDERER ---
       function getVisualHtml(def) { 
           const info = visualInfo[def] || { desc: "Hover for details." }; 
           let imgHtml = '';
@@ -848,7 +808,23 @@
         fetchExistingDams(); 
       }
 
-      function processSetup() { const n=document.getElementById('in_name').value, l=parseFloat(document.getElementById('in_length').value), c=parseInt(document.getElementById('in_count').value); if(!n||!l||c<1) return alert("Check inputs."); appState.damName=n; appState.totalLength=l; appState.numSegments=c; initSegments(c, l); changeStep(1); }
+      function processSetup() { 
+          const n=document.getElementById('in_name').value;
+          const l=parseFloat(document.getElementById('in_length').value);
+          const c=parseInt(document.getElementById('in_count').value);
+          if(!n||!l||c<1) return alert("Check inputs."); 
+          
+          // FIX: Erase all old data from memory when starting a new assessment
+          savedState = {}; 
+          fileStore = {};
+          localforage.removeItem('damAssessment_draft');
+
+          appState.damName=n; 
+          appState.totalLength=l; 
+          appState.numSegments=c; 
+          initSegments(c, l); 
+          changeStep(1); 
+      }
 
       function generateDefectHtml(k, def, info, val, cardId) {
           const activeVal = val !== undefined ? val : 1;
@@ -969,7 +945,6 @@
       function renderReportScreen() {
         appState.currentStep = appState.numSegments + 4; updateProgress();
         let dsi_struct = 0, dsi_spillway = 0, dsi_gates = 0, dsi_gallery = 0, criticals = [];
-        
         let accordionHtml = `<h3 style="margin-top:40px; color:var(--secondary); border-bottom: 2px solid #eee; padding-bottom:10px;">📋 Detailed Inspection Log</h3>`;
         
         // 1. Process Structural for Deep Nested Accordions
@@ -1074,6 +1049,7 @@
              <div class="stat-card"><div style="font-size:24px; font-weight:bold;">${dsi_gallery.toFixed(4)}</div><div style="font-size:12px; color:#7f8c8d; font-weight:bold; text-transform:uppercase;">Gallery (${(w_gallery*100).toFixed(0)}%)</div></div>
           </div>
 
+          <!-- Adjustable Major System Weights -->
           <div style="background: #fdfdfd; padding: 20px; border-radius: 8px; margin-top: 25px; border: 1px solid #ddd;">
              <h4 style="margin: 0 0 15px 0; color: var(--secondary);">Adjust Major System Weights</h4>
              <div style="display: flex; gap: 15px; flex-wrap: wrap;">
@@ -1095,9 +1071,51 @@
       }
 
       async function saveOfflineAndExport() {
+          const w_spillway = systemsData['Spillway'] ? systemsData['Spillway'].weight : 0;
+          const w_gates = systemsData['Gates'] ? systemsData['Gates'].weight : 0;
+          const w_gallery = systemsData['Gallery'] ? systemsData['Gallery'].weight : 0;
+          const w_struct = Math.max(0, 1 - (w_spillway + w_gates + w_gallery));
+
           let rows = [];
-          appState.segments.forEach((seg, sIdx) => { Object.keys(database).forEach((loc, lIdx) => { Object.keys(database[loc].defects).forEach((def, dIdx) => { if(database[loc].defects[def].enabled){ const k = getStructKey(seg.name, loc, def); const rank = savedState[k] || 1; if(rank > 0) { const norm = getNormRank(rank); const dsi = database[loc].defects[def].w * norm; rows.push([appState.damName, seg.name, seg.weight.toFixed(4), `${seg.start}-${seg.end}`, seg.height, loc, "", database[loc].weight, def, rank, norm, database[loc].defects[def].w, dsi, seg.weight * database[loc].weight * dsi, fileStore[k] || ""]); } } }); }); });
-          Object.keys(systemsData).forEach(sysKey => { Object.keys(systemsData[sysKey].components).forEach(compKey => { const comp = systemsData[sysKey].components[compKey]; Object.keys(comp.defects).forEach(defKey => { if(comp.defects[defKey].enabled) { const k = getSysKey(sysKey, compKey, defKey); const rank = savedState[k] || 1; if(rank > 0) { const norm = getNormRank(rank); const dsi = comp.defects[defKey].w * norm; rows.push([appState.damName, sysKey, systemsData[sysKey].weight.toFixed(4), "", "", compKey, "", comp.weight, defKey, rank, norm, comp.defects[defKey].w, dsi, comp.weight * dsi, fileStore[k] || ""]); } } }); }); });
+          
+          // Structural
+          appState.segments.forEach((seg, sIdx) => { 
+              Object.keys(database).forEach((loc, lIdx) => { 
+                  Object.keys(database[loc].defects).forEach((def, dIdx) => { 
+                      if(database[loc].defects[def].enabled){ 
+                          const k = getStructKey(seg.name, loc, def); 
+                          const rank = savedState[k] || 1; 
+                          if(rank > 0) { 
+                              const norm = getNormRank(rank); 
+                              const dsi = database[loc].defects[def].w * norm; 
+                              // FIX: Calculate True Weighted Penalty for Admin Export
+                              const finalWeightedDsi = w_struct * seg.weight * database[loc].weight * dsi; 
+                              rows.push([appState.damName, seg.name, seg.weight.toFixed(4), `${seg.start}-${seg.end}`, seg.height, loc, "", database[loc].weight, def, rank, norm, database[loc].defects[def].w, dsi.toFixed(4), finalWeightedDsi.toFixed(4), fileStore[k] || ""]); 
+                          } 
+                      } 
+                  }); 
+              }); 
+          });
+          
+          // Systems
+          Object.keys(systemsData).forEach(sysKey => { 
+              Object.keys(systemsData[sysKey].components).forEach(compKey => { 
+                  const comp = systemsData[sysKey].components[compKey]; 
+                  Object.keys(comp.defects).forEach(defKey => { 
+                      if(comp.defects[defKey].enabled) { 
+                          const k = getSysKey(sysKey, compKey, defKey); 
+                          const rank = savedState[k] || 1; 
+                          if(rank > 0) { 
+                              const norm = getNormRank(rank); 
+                              const dsi = comp.defects[defKey].w * norm; 
+                              // FIX: Calculate True Weighted Penalty for Admin Export
+                              const finalWeightedDsi = systemsData[sysKey].weight * comp.weight * dsi; 
+                              rows.push([appState.damName, sysKey, systemsData[sysKey].weight.toFixed(4), "", "", compKey, "", comp.weight, defKey, rank, norm, comp.defects[defKey].w, dsi.toFixed(4), finalWeightedDsi.toFixed(4), fileStore[k] || ""]); 
+                          } 
+                      } 
+                  }); 
+              }); 
+          });
 
           let offlineStorage = await localforage.getItem('damAssessments') || [];
           offlineStorage.push({ id: new Date().getTime(), damName: appState.damName, data: rows });
