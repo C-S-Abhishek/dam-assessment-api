@@ -21,7 +21,7 @@ app.add_middleware(
 SECRET_KEY = os.getenv("SECRET_KEY", "super_secret_dam_encryption_key_2024")
 
 # This is your active Supabase connection!
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:zncnLEXt98z5T5yL@db.zwfiedglfwjqptlhdquf.supabase.co:5432/postgres")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres.zwfiedglfwjqptlhdquf:YOUR_REAL_PASSWORD_HERE@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres")
 
 engine = create_engine(DATABASE_URL)
 security = HTTPBearer()
