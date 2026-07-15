@@ -345,7 +345,8 @@
                  <div class="setup-group"><label>Username</label><input type="text" id="loginUser" placeholder="inspector"></div>
                  <div class="setup-group"><label>Password</label><input type="password" id="loginPass" placeholder="****"></div>
                  <button class="btn btn-primary" id="loginBtn" style="width: 100%; margin-top: 10px; font-size:18px;" onclick="handleLogin()">Sign In</button>
-                 <p id="loginErr" style="color:var(--danger); text-align:center; margin-top:15px; font-weight:bold; display:none;">Invalid Credentials</p>
+                <p id="loginErr" style="color:var(--danger); text-align:center; margin-top:15px; font-weight:bold; display:none;">Invalid Credentials</p>
+                <button class="btn btn-danger" style="width: 100%; margin-top: 20px; font-size:16px; background-color: #c0392b;" onclick="localStorage.clear(); localforage.clear(); location.reload();">🚨 Factory Reset Local App</button>
               </div>
             </div>
           `;
