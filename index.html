@@ -685,51 +685,71 @@
           }
       }
 
-      function loadDamData(mode) {
-          const name = document.getElementById('damSelector').value;
-          if(!name) return alert("Select a dam first.");
+    function loadDamData(mode) {
+    const name = document.getElementById('damSelector').value;
+    if(!name) return alert("Select a dam first.");
 
-          const data = window.cachedServerData.filter(r => r.damName.toLowerCase() === name.toLowerCase());
-          if(!data || data.length === 0) return alert("No data found.");
+    const rawData = window.cachedServerData.filter(r => r.damName.toLowerCase() === name.toLowerCase());
+    if(!rawData || rawData.length === 0) return alert("No data found.");
 
-          appState.damName = data[0].damName;
-          const segNames = [...new Set(data.filter(r => !systemsData[r.segment] && r.segment).map(r => r.segment))];
-          appState.numSegments = segNames.length > 0 ? segNames.length : 1;
+    // --- CRITICAL FIX: Isolate the most recent sync data ---
+    // This prevents old historical assessments from mixing with the new ones.
+    const latestDefects = {};
+    rawData.forEach(r => {
+        const comp = r.component || r.location;
+        const key = r.segment + '_' + comp + '_' + r.defect;
+        latestDefects[key] = r; 
+    });
+    const data = Object.values(latestDefects);
 
-          let lastEnd = 100;
-          const lastSeg = data.slice().reverse().find(r => r.range && r.range.includes('-'));
-          if (lastSeg) lastEnd = parseFloat(lastSeg.range.split('-')[1]);
-          appState.totalLength = lastEnd;
+    appState.damName = data[0].damName;
+    
+    // Safely extract Structural Segments, explicitly filtering out System tabs
+    const structRows = data.filter(r => !["Spillway", "Gates", "Gallery", "Abutment"].includes(r.segment) && r.segment);
+    const segNames = [...new Set(structRows.map(r => r.segment))];
+    appState.numSegments = segNames.length > 0 ? segNames.length : 1;
 
-          initSegments(appState.numSegments, appState.totalLength);
-          savedState = {}; fileStore = {};
+    // Dynamically calculate the accurate max length of the dam
+    let maxEnd = 100;
+    structRows.forEach(r => {
+        if (r.range && r.range.includes('-')) {
+            const end = parseFloat(r.range.split('-')[1]);
+            if (!isNaN(end) && end > maxEnd) maxEnd = end;
+        }
+    });
+    appState.totalLength = maxEnd;
 
-          data.forEach(row => {
-              if(systemsData[row.segment]) { 
-                  const comp = row.component || row.location; 
-                  const k = getSysKey(row.segment, comp, row.defect);
-                  savedState[k] = parseInt(row.rank);
-                  if(row.image && row.image.length > 50) fileStore[k] = row.image;
-              } else {
-                  const sIdx = appState.segments.findIndex(s => s.name === row.segment);
-                  if(sIdx > -1) {
-                      appState.segments[sIdx].height = parseFloat(row.height);
-                      if(row.range && row.range.includes('-')) {
-                          const r = row.range.split('-');
-                          appState.segments[sIdx].start = parseFloat(r[0]);
-                          appState.segments[sIdx].end = parseFloat(r[1]);
-                      }
-                      const k = getStructKey(row.segment, row.location, row.defect);
-                      savedState[k] = parseInt(row.rank);
-                      if(row.image && row.image.length > 50) fileStore[k] = row.image;
-                  }
-              }
-          });
-          
-          recalcWeights();
-          if(mode === 'edit') changeStep(1);
-          else renderReportScreen();
-      }
+    initSegments(appState.numSegments, appState.totalLength);
+    savedState = {}; 
+    fileStore = {};
+
+    // Hydrate the fields accurately mapping images and severities 
+    data.forEach(row => {
+        if(["Spillway", "Gates", "Gallery", "Abutment"].includes(row.segment)) { 
+            const comp = row.component || row.location; 
+            const k = getSysKey(row.segment, comp, row.defect);
+            savedState[k] = parseInt(row.rank) || 1; // Default to Minor if corrupt
+            if(row.image && row.image.length > 50) fileStore[k] = row.image;
+        } else {
+            const sIdx = appState.segments.findIndex(s => s.name === row.segment);
+            if(sIdx > -1) {
+                appState.segments[sIdx].height = parseFloat(row.height) || 50;
+                if(row.range && row.range.includes('-')) {
+                    const r = row.range.split('-');
+                    appState.segments[sIdx].start = parseFloat(r[0]);
+                    appState.segments[sIdx].end = parseFloat(r[1]);
+                }
+                const k = getStructKey(row.segment, row.location, row.defect);
+                savedState[k] = parseInt(row.rank) || 1; // Default to Minor if corrupt
+                if(row.image && row.image.length > 50) fileStore[k] = row.image;
+            }
+        }
+    });
+    
+    recalcWeights();
+    if(mode === 'edit') changeStep(1);
+    else renderReportScreen();
+}
 
       function autoSaveDraft() {
           if (!appState.damName || appState.damName === "") return;
